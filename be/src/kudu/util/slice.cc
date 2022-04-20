@@ -19,8 +19,8 @@
 
 #include <cctype>
 
-#include "kudu/util/status.h"
-#include "kudu/util/logging.h"
+#include "common/logging.h"
+#include "gutil/stringprintf.h"
 
 namespace kudu {
 

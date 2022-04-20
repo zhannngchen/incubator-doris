@@ -19,9 +19,12 @@
 #include <ostream>
 #include <string>
 
+#include "common/status.h"
+#include "util/faststring.h"
+
 namespace kudu {
 
-class Status;
+using doris::Status;
 
 /// @brief A wrapper around externally allocated data.
 ///

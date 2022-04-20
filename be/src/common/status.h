@@ -301,6 +301,10 @@ public:
                                                 const Slice& msg2 = Slice()) {
         return Status(TStatusCode::MINIMUM_RESERVATION_UNAVAILABLE, msg, precise_code, msg2);
     }
+    static Status Corruption(const Slice& msg, const Slice& msg2 = Slice(),
+                             int16_t posix_code = -1) {
+        return Status(TStatusCode::CORRUPTION, msg, posix_code, msg2);
+    }
     static Status Corruption(const Slice& msg, int16_t precise_code = 1,
                              const Slice& msg2 = Slice()) {
         return Status(TStatusCode::CORRUPTION, msg, precise_code, msg2);
