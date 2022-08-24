@@ -2009,6 +2009,8 @@ Status Tablet::calc_delete_bitmap(RowsetId rowset_id,
                 ++row_id;
                 delete_bitmap->add({loc.rowset_id, loc.segment_id, dummy_version.first},
                                    loc.row_id);
+                LOG(INFO) << "PKDBG: add delete bitmap for " << loc.rowset_id.to_string() << ", "
+                          << loc.segment_id << ", " << dummy_version.first << ", " << loc.row_id;
             }
             remaining -= num_read;
         }
