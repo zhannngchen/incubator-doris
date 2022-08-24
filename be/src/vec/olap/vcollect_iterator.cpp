@@ -242,6 +242,7 @@ Status VCollectIterator::Level0Iterator::next(IteratorRowRef* ref) {
 }
 
 Status VCollectIterator::Level0Iterator::next(Block* block) {
+    LOG(INFO) << "PKDBG, Level0Iterator::next";
     if (UNLIKELY(_ref.block->rows() > 0 && _ref.row_pos == 0)) {
         block->swap(*_ref.block);
         _ref.row_pos = -1;

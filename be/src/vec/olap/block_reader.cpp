@@ -245,6 +245,7 @@ Status BlockReader::_agg_key_next_block(Block* block, MemPool* mem_pool, ObjectP
 
 Status BlockReader::_unique_key_next_block(Block* block, MemPool* mem_pool, ObjectPool* agg_pool,
                                            bool* eof) {
+    LOG(INFO) << "PKDBG: _unique_key_next_block";
     if (UNLIKELY(_eof)) {
         *eof = true;
         return Status::OK();

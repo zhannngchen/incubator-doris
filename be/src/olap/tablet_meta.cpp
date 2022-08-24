@@ -796,6 +796,10 @@ void TabletMeta::update_delete_bitmap(const std::vector<RowsetSharedPtr>& input_
                         VLOG_CRITICAL << "Can't find rowid, may be deleted by the delete_handler.";
                         continue;
                     }
+                    LOG(INFO) << "PKDBG: convert src row loc: (" << src.rowset_id.to_string() << ", "
+                              << src.segment_id << ", " << src.row_id << ") to (" << dst.rowset_id.to_string()
+                              << ", " << dst.segment_id << ", " << dst.row_id << ")";
+
                     output_rowset_delete_bitmap.add({dst.rowset_id, dst.segment_id, cur_version},
                                                     dst.row_id);
                 }

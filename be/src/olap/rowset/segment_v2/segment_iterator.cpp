@@ -194,6 +194,10 @@ Status SegmentIterator::_init(bool is_vec) {
     // Remove rows that have been marked deleted
     if (_opts.delete_bitmap.count(segment_id()) > 0 &&
         _opts.delete_bitmap[segment_id()] != nullptr) {
+        roaring::Roaring roraing_bitmap =  *(_opts.delete_bitmap[segment_id()]);
+        for (auto iter = roraing_bitmap.begin(); iter != roraing_bitmap.end(); iter++) {
+            LOG(INFO) << "PKDBG: row id in delete bitmap: " << *iter;
+        }
         size_t pre_size = _row_bitmap.cardinality();
         _row_bitmap -= *(_opts.delete_bitmap[segment_id()]);
         _opts.stats->rows_del_by_bitmap += (pre_size - _row_bitmap.cardinality());
