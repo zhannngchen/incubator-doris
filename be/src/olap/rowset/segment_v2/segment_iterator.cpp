@@ -959,6 +959,7 @@ Status SegmentIterator::_read_columns_by_index(uint32_t nrows_read_limit, uint32
         if (!has_next_range) {
             break;
         }
+        LOG(INFO) << "PKDBG, next_range: " << range_from << ", " << range_to;
         if (_cur_rowid == 0 || _cur_rowid != range_from) {
             _cur_rowid = range_from;
             _opts.stats->block_first_read_seek_num += 1;
@@ -968,6 +969,7 @@ Status SegmentIterator::_read_columns_by_index(uint32_t nrows_read_limit, uint32
         size_t rows_to_read = range_to - range_from;
         RETURN_IF_ERROR(
                 _read_columns(_first_read_column_ids, _current_return_columns, rows_to_read));
+        LOG(INFO) << "PKDBG, rows_to_read: " << rows_to_read;
         _cur_rowid += rows_to_read;
         if (set_block_rowid) {
             // Here use std::iota is better performance than for-loop, maybe for-loop is not vectorized
@@ -1154,6 +1156,7 @@ Status SegmentIterator::next_batch(vectorized::Block* block) {
         //          to reduce cost of read short circuit columns.
         //          In SSB test, it make no difference; So need more scenarios to test
         selected_size = _evaluate_short_circuit_predicate(sel_rowid_idx, selected_size);
+        LOG(INFO) << "PKDBG, selected_size: " << selected_size;
 
         if (UNLIKELY(_opts.record_rowids)) {
             _sel_rowid_idx.reserve(selected_size);

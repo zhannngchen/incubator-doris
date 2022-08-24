@@ -460,6 +460,7 @@ Status VUnionIterator::init(const StorageReadOptions& opts) {
 }
 
 Status VUnionIterator::next_batch(vectorized::Block* block) {
+    LOG(INFO) << "PKDBG, Level1Iterator::_normal_next";
     while (_cur_iter != nullptr) {
         auto st = _cur_iter->next_batch(block);
         if (st.is_end_of_file()) {

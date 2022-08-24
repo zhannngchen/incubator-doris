@@ -170,6 +170,7 @@ Status BlockReader::init(const ReaderParams& read_params) {
 
 Status BlockReader::_direct_next_block(Block* block, MemPool* mem_pool, ObjectPool* agg_pool,
                                        bool* eof) {
+    LOG(INFO) << "PKDBG, _direct_next_block";
     auto res = _vcollect_iter.next(block);
     if (UNLIKELY(!res.ok() && res.precise_code() != OLAP_ERR_DATA_EOF)) {
         return res;

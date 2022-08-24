@@ -477,6 +477,7 @@ Status VCollectIterator::Level1Iterator::_merge_next(Block* block) {
 
 Status VCollectIterator::Level1Iterator::_normal_next(Block* block) {
     auto res = _cur_child->next(block);
+    LOG(INFO) << "PKDBG, Level1Iterator::_normal_next, block num rows: " << block->rows();
     if (LIKELY(res.ok())) {
         return Status::OK();
     } else if (res.precise_code() == OLAP_ERR_DATA_EOF) {

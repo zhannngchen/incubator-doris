@@ -332,6 +332,7 @@ Status VOlapScanner::get_block(RuntimeState* state, vectorized::Block* block, bo
                 return res;
             }
             _num_rows_read += block->rows();
+            LOG(INFO) << "PKDBG" << ", tablet_reader read block rows" << block->rows() << ", total rows read: " << _num_rows_read;
             _update_realtime_counter();
             RETURN_IF_ERROR(
                     VExprContext::filter_block(_vconjunct_ctx, block, _tuple_desc->slots().size()));
