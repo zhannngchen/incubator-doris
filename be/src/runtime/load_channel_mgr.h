@@ -126,7 +126,12 @@ Status LoadChannelMgr::add_batch(const TabletWriterAddRequest& request,
         // 2. check if mem consumption exceed limit
         // If this is a high priority load task, do not handle this.
         // because this may block for a while, which may lead to rpc timeout.
+        OlapStopWatch watch;
         RETURN_IF_ERROR(_handle_mem_exceed_limit(response));
+        if (watch.get_elapse_second() > 8) {
+            LOG(INFO) << "zcdbg: add batch wait on LoadChannelMgr::_handle_mem_exceed_limit for "
+                      << watch.get_elapse_second() << " seconds";
+        }
     }
 
     // 3. add batch to load channel
@@ -149,6 +154,8 @@ Status LoadChannelMgr::_handle_mem_exceed_limit(TabletWriterAddResult* response)
         return Status::OK();
     }
 
+    LOG(INFO) << "zcdbg: process memory limit exceeded, _handle_mem_exceed_limit";
+
     int64_t max_consume = 0;
     std::shared_ptr<LoadChannel> channel;
     for (auto& kv : _load_channels) {
@@ -170,7 +177,7 @@ Status LoadChannelMgr::_handle_mem_exceed_limit(TabletWriterAddResult* response)
     DCHECK(channel.get() != nullptr);
 
     // force reduce mem limit of the selected channel
-    LOG(INFO) << "reducing memory of " << *channel << " because total load mem consumption "
+    LOG(INFO) << "LOAD_CHANNEL_MGR: reducing memory of " << *channel << " because total load mem consumption "
               << _mem_tracker->consumption() << " has exceeded limit " << _mem_tracker->limit();
     return channel->handle_mem_exceed_limit(true, response);
 }

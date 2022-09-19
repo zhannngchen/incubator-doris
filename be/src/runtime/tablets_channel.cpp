@@ -262,6 +262,8 @@ Status TabletsChannel::reduce_mem_usage(int64_t mem_limit, TabletWriterAddResult
             continue;
         }
         Status st = writers[i]->wait_flush();
+        sleep(10);
+        LOG(INFO) << "zcdbg: sleep 10 sec for test";
         if (!st.ok()) {
             return Status::InternalError(
                     "failed to reduce mem consumption by flushing memtable. err: {}", st);

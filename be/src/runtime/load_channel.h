@@ -142,7 +142,12 @@ Status LoadChannel::add_batch(const TabletWriterAddRequest& request,
     }
 
     // 2. check if mem consumption exceed limit
+    OlapStopWatch watch;
     RETURN_IF_ERROR(handle_mem_exceed_limit(false, response));
+    if (watch.get_elapse_second() > 8) {
+        LOG(INFO) << "zcdbg: add batch wait on LoadChannel::handle_mem_exceed_limit for "
+                  << watch.get_elapse_second() << " seconds";
+    }
 
     // 3. add batch to tablets channel
     if constexpr (std::is_same_v<TabletWriterAddRequest, PTabletWriterAddBatchRequest>) {
@@ -182,7 +187,7 @@ Status LoadChannel::handle_mem_exceed_limit(bool force, TabletWriterAddResult* r
     }
 
     if (!force) {
-        LOG(INFO) << "reducing memory of " << *this << " because its mem consumption "
+        LOG(INFO) << "LOAD_CHANNEL: reducing memory of " << *this << " because its mem consumption "
                   << _mem_tracker->consumption() << " has exceeded limit " << _mem_tracker->limit();
     }
 
