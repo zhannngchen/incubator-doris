@@ -117,7 +117,12 @@ Status LoadChannelMgr::add_batch(const TabletWriterAddRequest& request,
     // 1. get load channel
     std::shared_ptr<LoadChannel> channel;
     bool is_eof;
+    OlapStopWatch watch;
     auto status = _get_load_channel(channel, is_eof, load_id, request);
+    if (watch.get_elapse_second() > 8) {
+        LOG(INFO) << "zcdbg: add batch wait on LoadChannelMgr::_get_load_channel for "
+                  << watch.get_elapse_second() << " seconds";
+    }
     if (!status.ok() || is_eof) {
         return status;
     }
@@ -126,7 +131,6 @@ Status LoadChannelMgr::add_batch(const TabletWriterAddRequest& request,
         // 2. check if mem consumption exceed limit
         // If this is a high priority load task, do not handle this.
         // because this may block for a while, which may lead to rpc timeout.
-        OlapStopWatch watch;
         RETURN_IF_ERROR(_handle_mem_exceed_limit(response));
         if (watch.get_elapse_second() > 8) {
             LOG(INFO) << "zcdbg: add batch wait on LoadChannelMgr::_handle_mem_exceed_limit for "
