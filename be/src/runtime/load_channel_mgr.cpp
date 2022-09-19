@@ -42,21 +42,6 @@ static int64_t calc_process_max_load_memory(int64_t process_mem_limit) {
     return std::min<int64_t>(max_load_memory_bytes, config::load_process_max_memory_limit_bytes);
 }
 
-// Calculate the memory limit for a single load channel.
-static int64_t calc_channel_max_load_memory(int64_t load_mem_limit, int64_t total_mem_limit) {
-    // default mem limit is used to be compatible with old request.
-    // new request should be set load_mem_limit.
-    constexpr int64_t default_channel_mem_limit = 2 * 1024 * 1024 * 1024L; // 2GB
-    int64_t channel_mem_limit = default_channel_mem_limit;
-    if (load_mem_limit != -1) {
-        // mem-limit of a certain load should between config::write_buffer_size
-        // and total-memory-limit
-        channel_mem_limit = std::max<int64_t>(load_mem_limit, config::write_buffer_size);
-        channel_mem_limit = std::min<int64_t>(channel_mem_limit, total_mem_limit);
-    }
-    return channel_mem_limit;
-}
-
 static int64_t calc_channel_timeout_s(int64_t timeout_in_req_s) {
     int64_t load_channel_timeout_s = config::streaming_load_rpc_max_alive_time_sec;
     if (timeout_in_req_s > 0) {
