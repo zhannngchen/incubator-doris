@@ -136,13 +136,17 @@ Status LoadChannel::add_batch(const TabletWriterAddRequest& request,
     // 1. get tablets channel
     std::shared_ptr<TabletsChannel> channel;
     bool is_finished;
+    OlapStopWatch watch;
     Status st = _get_tablets_channel(channel, is_finished, index_id);
+    if (watch.get_elapse_second() > 8) {
+        LOG(INFO) << "zcdbg: add batch wait on LoadChannel::_get_tablets_channel for "
+                  << watch.get_elapse_second() << " seconds";
+    }
     if (!st.ok() || is_finished) {
         return st;
     }
 
     // 2. check if mem consumption exceed limit
-    OlapStopWatch watch;
     RETURN_IF_ERROR(handle_mem_exceed_limit(false, response));
     if (watch.get_elapse_second() > 8) {
         LOG(INFO) << "zcdbg: add batch wait on LoadChannel::handle_mem_exceed_limit for "
