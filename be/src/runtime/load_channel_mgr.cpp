@@ -107,9 +107,7 @@ Status LoadChannelMgr::open(const PTabletWriterOpenRequest& params) {
             int64_t channel_timeout_s = calc_channel_timeout_s(timeout_in_req_s);
             bool is_high_priority = (params.has_is_high_priority() && params.is_high_priority());
 
-            int64_t load_mem_limit = params.has_load_mem_limit() ? params.load_mem_limit() : -1;
-            int64_t channel_mem_limit =
-                    calc_channel_max_load_memory(load_mem_limit, _mem_tracker->limit());
+            int64_t channel_mem_limit = config::load_channel_memory_limit_bytes;
             auto channel_mem_tracker = std::make_shared<MemTrackerLimiter>(
                     channel_mem_limit,
                     fmt::format("LoadChannel#senderIp={}#loadID={}", params.sender_ip(),
