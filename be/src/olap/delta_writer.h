@@ -132,6 +132,24 @@ private:
 
     //only used for std::sort more detail see issue(#9237)
     int64_t _memtable_consumption_snapshot  = 0;
+
+    // use in vectorized load
+    bool _is_vec;
+
+    // memory consumption snapshot for current memtable, only
+    // used for std::sort
+    int64_t _memtable_consumption_snapshot = 0;
+
+    std::unordered_set<int64_t> _unfinished_slave_node;
+    PSuccessSlaveTabletNodeIds _success_slave_node_ids;
+    std::shared_mutex _slave_node_lock;
+
+    DeleteBitmapPtr _delete_bitmap = nullptr;
+    // current rowset_ids, used to do diff in publish_version
+    RowsetIdUnorderedSet _rowset_ids;
+    // current max version, used to calculate delete bitmap
+    int64_t _cur_max_version;
+>>>>>>> 27f7ae258 ([Enhancement](load) optimize flush policy to avoid small segments #12706)
 };
 
 } // namespace doris
