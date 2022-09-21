@@ -161,7 +161,6 @@ void ThreadPoolToken::wait() {
     std::unique_lock<std::mutex> l(_pool->_lock);
     _pool->check_not_pool_thread_unlocked();
     while (is_active()) {
-        LOG(INFO) << "wait on _not_running_cond";
         _not_running_cond.wait(l);
     }
 }
@@ -170,11 +169,8 @@ void ThreadPoolToken::transition(State new_state) {
 #ifndef NDEBUG
     CHECK_NE(_state, new_state);
 
-    std::ostringstream oss;
-    oss << "transition to state";
     switch (_state) {
     case State::IDLE:
-        oss << "idle";
         CHECK(new_state == State::RUNNING || new_state == State::QUIESCED);
         if (new_state == State::RUNNING) {
             CHECK(!_entries.empty());
@@ -184,7 +180,6 @@ void ThreadPoolToken::transition(State new_state) {
         }
         break;
     case State::RUNNING:
-        oss << "running";
         CHECK(new_state == State::IDLE || new_state == State::QUIESCING ||
               new_state == State::QUIESCED);
         CHECK(_entries.empty());
@@ -193,12 +188,10 @@ void ThreadPoolToken::transition(State new_state) {
         }
         break;
     case State::QUIESCING:
-        oss << "quiescing";
         CHECK(new_state == State::QUIESCED);
         CHECK_EQ(_active_threads, 0);
         break;
     case State::QUIESCED:
-        oss << "quiesced";
         CHECK(false); // QUIESCED is a terminal state
         break;
     default:
@@ -210,13 +203,11 @@ void ThreadPoolToken::transition(State new_state) {
     switch (new_state) {
     case State::IDLE:
     case State::QUIESCED:
-        LOG(INFO) << "zcdbg: token task cleared, notify all";
         _not_running_cond.notify_all();
         break;
     default:
         break;
     }
-    LOG(INFO) << oss.str();
 
     _state = new_state;
 }
