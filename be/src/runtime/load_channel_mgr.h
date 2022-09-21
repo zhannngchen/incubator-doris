@@ -156,6 +156,7 @@ Status LoadChannelMgr::_handle_mem_exceed_limit(TabletWriterAddResult* response)
     if (_mem_tracker->consumption() < _load_process_soft_limit) {
         return Status::OK();
     }
+    LOG(INFO) << "zcdbg: " << "soft limit exceeded";
     // Pick load channel to reduce memory.
     std::shared_ptr<LoadChannel> channel;
     {

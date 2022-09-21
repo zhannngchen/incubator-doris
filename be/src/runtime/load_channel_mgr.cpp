@@ -71,6 +71,7 @@ Status LoadChannelMgr::init(int64_t process_mem_limit) {
     int64_t load_mgr_mem_limit = calc_process_max_load_memory(process_mem_limit);
     _load_process_soft_limit = load_mgr_mem_limit * config::load_process_soft_limit_percent / 100;
     _mem_tracker = std::make_shared<MemTrackerLimiter>(load_mgr_mem_limit, "LoadChannelMgr");
+    LOG(INFO) << "zcdbg: hard limit" << load_mgr_mem_limit << ", soft limit " << _load_process_soft_limit;
     REGISTER_HOOK_METRIC(load_channel_mem_consumption,
                          [this]() { return _mem_tracker->consumption(); });
     _last_success_channel = new_lru_cache("LastestSuccessChannelCache", 1024);
