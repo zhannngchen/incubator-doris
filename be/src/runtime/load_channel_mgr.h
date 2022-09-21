@@ -166,6 +166,7 @@ Status LoadChannelMgr::_handle_mem_exceed_limit(TabletWriterAddResult* response)
         if (_reduce_memory_channel != nullptr && !_mem_tracker->limit_exceeded()) {
             return Status::OK();
         }
+        LOG(INFO) << "zcdbg: " << "soft limit exceeded";
 
         // We need to pick a LoadChannel to reduce memory usage.
         // If `_reduce_memory_channel` is not null, it means the hard limit is

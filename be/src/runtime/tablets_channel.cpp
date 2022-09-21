@@ -230,6 +230,7 @@ Status TabletsChannel::reduce_mem_usage(TabletWriterAddResult* response) {
         // the tablet that has not been flushed before will accumulate more data, thereby reducing the number of flushes.
 
         int64_t mem_to_flushed = _mem_tracker->consumption() / 3;
+        LOG(INFO) << "choosing delta writers, need to flush " << mem_to_flushed << ", bytes";
         int counter = 0;
         int64_t sum = 0;
         for (auto writer : writers) {
@@ -242,7 +243,7 @@ Status TabletsChannel::reduce_mem_usage(TabletWriterAddResult* response) {
                 break;
             }
         }
-        VLOG_CRITICAL << "flush " << counter << " memtables to reduce memory: " << sum;
+        LOG(INFO) << "flush " << counter << " memtables to reduce memory: " << sum;
         google::protobuf::RepeatedPtrField<PTabletError>* tablet_errors =
                 response->mutable_tablet_errors();
         // following loop flush memtable async, we'll do it with _lock
@@ -272,6 +273,7 @@ Status TabletsChannel::reduce_mem_usage(TabletWriterAddResult* response) {
     }
 
     for (auto writer : writers_to_flush) {
+        LOG(INFO) << "wait for flush";
         Status st = writer->wait_flush();
         if (!st.ok()) {
             return Status::InternalError(
