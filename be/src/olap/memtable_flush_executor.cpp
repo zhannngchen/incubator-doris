@@ -97,7 +97,7 @@ void FlushToken::_flush_memtable(MemTable* memtable, int64_t submit_task_time) {
         return;
     }
 
-    VLOG_CRITICAL << "flush memtable cost: " << timer.elapsed_time()
+    LOG(INFO) << "flush memtable cost: " << timer.elapsed_time()
                   << ", running count: " << _stats.flush_running_count
                   << ", finish count: " << _stats.flush_finish_count
                   << ", mem size: " << memtable->memory_usage()

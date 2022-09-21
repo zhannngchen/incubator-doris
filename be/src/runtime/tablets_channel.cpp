@@ -339,6 +339,7 @@ Status TabletsChannel::_open_all_writers(const PTabletWriterOpenRequest& request
 void TabletsChannel::_try_to_wait_flushing() {
     std::unique_lock<std::mutex> l(_lock);
     while (_reducing_mem_usage) {
+        LOG(INFO) << "waiting for reduce mem finished";
         _reduce_memory_cond.wait(l);
     }
 }
