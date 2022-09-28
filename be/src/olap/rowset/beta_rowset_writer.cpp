@@ -137,7 +137,8 @@ vectorized::VMergeIterator* BetaRowsetWriter::_get_segcompaction_reader(
     }
     bool is_unique = (_context.tablet_schema->keys_type() == UNIQUE_KEYS);
     bool is_reverse = false;
-    auto merge_itr = vectorized::new_merge_iterator(iterators, -1, is_unique, is_reverse, merged_row_stat);
+    auto merge_itr =
+            vectorized::new_merge_iterator(iterators, -1, is_unique, is_reverse, merged_row_stat);
     DCHECK(merge_itr);
     auto s = merge_itr->init(read_options);
     if (!s.ok()) {
@@ -191,7 +192,6 @@ Status BetaRowsetWriter::_rename_compacted_segments(int64_t begin, int64_t end) 
     return Status::OK();
 }
 
-// TODO(zhangzhengyu): maybe need content modification instead of simply renaming
 Status BetaRowsetWriter::_rename_compacted_segment_plain(uint64_t seg_id) {
     if (seg_id == _num_segcompacted) {
         return Status::OK();
@@ -201,17 +201,19 @@ Status BetaRowsetWriter::_rename_compacted_segment_plain(uint64_t seg_id) {
     auto src_seg_path =
             BetaRowset::local_segment_path(_context.tablet_path, _context.rowset_id, seg_id);
     auto dst_seg_path = BetaRowset::local_segment_path(_context.tablet_path, _context.rowset_id,
-                                                       _num_segcompacted++);
+                                                       _num_segcompacted);
     LOG(INFO) << "segcompaction skip this segment. rename " << src_seg_path << " to "
               << dst_seg_path;
     {
         std::lock_guard<std::mutex> lock(_segid_statistics_map_mutex);
-        DCHECK_EQ(_segid_statistics_map.find(seg_id + 1) == _segid_statistics_map.end(), false);
-        DCHECK_EQ(_segid_statistics_map.find(_num_segcompacted) == _segid_statistics_map.end(), true);
-        statistics org = _segid_statistics_map[seg_id + 1];
+        DCHECK_EQ(_segid_statistics_map.find(seg_id) == _segid_statistics_map.end(), false);
+        DCHECK_EQ(_segid_statistics_map.find(_num_segcompacted) == _segid_statistics_map.end(),
+                  true);
+        Statistics org = _segid_statistics_map[seg_id];
         _segid_statistics_map.emplace(_num_segcompacted, org);
         _clear_statistics_for_deleting_segments_unsafe(seg_id, seg_id);
     }
+    ++_num_segcompacted;
     ret = rename(src_seg_path.c_str(), dst_seg_path.c_str());
     if (ret) {
         LOG(WARNING) << "failed to rename " << src_seg_path << " to " << dst_seg_path;
@@ -220,11 +222,11 @@ Status BetaRowsetWriter::_rename_compacted_segment_plain(uint64_t seg_id) {
     return Status::OK();
 }
 
-void BetaRowsetWriter::_clear_statistics_for_deleting_segments_unsafe(uint64_t begin, uint64_t end) {
-    LOG(INFO) << "_segid_statistics_map clear record segid range from:" << begin + 1
-              << " to:" << end + 1;
+void BetaRowsetWriter::_clear_statistics_for_deleting_segments_unsafe(uint64_t begin,
+                                                                      uint64_t end) {
+    LOG(INFO) << "_segid_statistics_map clear record segid range from:" << begin << " to:" << end;
     for (int i = begin; i <= end; ++i) {
-        _segid_statistics_map.erase(i + 1);
+        _segid_statistics_map.erase(i);
     }
 }
 
@@ -237,8 +239,7 @@ Status BetaRowsetWriter::_check_correctness(std::unique_ptr<OlapReaderStatistics
     {
         std::lock_guard<std::mutex> lock(_segid_statistics_map_mutex);
         for (int i = begin; i <= end; ++i) {
-            LOG(INFO) << i << ":" << _segid_statistics_map[i + 1].row_num;
-            sum_target_row += _segid_statistics_map[i + 1].row_num;
+            sum_target_row += _segid_statistics_map[i].row_num;
         }
     }
 
@@ -268,16 +269,14 @@ Status BetaRowsetWriter::_do_segcompaction(SegCompactionCandidatesSharedPtr segm
                                            _context.tablet_schema->columns().size());
     std::unique_ptr<OlapReaderStatistics> stat(new OlapReaderStatistics());
     uint64_t merged_row_stat = 0;
-    vectorized::VMergeIterator* reader = _get_segcompaction_reader(segments, schema, stat.get(),
-                                                                   &merged_row_stat);
-    if (UNLIKELY(reader == nullptr))
-    {
+    vectorized::VMergeIterator* reader =
+            _get_segcompaction_reader(segments, schema, stat.get(), &merged_row_stat);
+    if (UNLIKELY(reader == nullptr)) {
         LOG(WARNING) << "failed to get segcompaction reader";
         return Status::OLAPInternalError(OLAP_ERR_SEGCOMPACTION_INIT_READER);
     }
     auto writer = _create_segcompaction_writer(begin, end);
-    if (UNLIKELY(writer == nullptr))
-    {
+    if (UNLIKELY(writer == nullptr)) {
         LOG(WARNING) << "failed to get segcompaction writer";
         return Status::OLAPInternalError(OLAP_ERR_SEGCOMPACTION_INIT_WRITER);
     }
@@ -317,11 +316,11 @@ Status BetaRowsetWriter::_do_segcompaction(SegCompactionCandidatesSharedPtr segm
                    << " list directory:" << ss.str();
     }
 
+    _segcompacted_point += (end - begin + 1);
+
     uint64_t elapsed = GetCurrentTimeMicros() - begin_time;
     LOG(INFO) << "BetaRowsetWriter:" << this << " segcompaction completed. elapsed time:" << elapsed
               << "us. _segcompacted_point update:" << _segcompacted_point;
-
-    _segcompacted_point += (end - begin + 1);
 
     return Status::OK();
 }
@@ -651,13 +650,15 @@ Status BetaRowsetWriter::flush_single_memtable(const vectorized::Block* block) {
 
 Status BetaRowsetWriter::_wait_flying_segcompaction() {
     uint64_t begin_wait = GetCurrentTimeMicros();
-    while (_is_doing_segcompaction) { // TODO: memory barrier?
+    while (_is_doing_segcompaction) {
         // change sync wait to async?
         std::unique_lock<std::mutex> l(_is_doing_segcompaction_lock);
         _segcompacting_cond.wait(l);
     }
-    LOG(INFO) << "wait flying segcompaction finish time:" << GetCurrentTimeMicros() - begin_wait
-              << "us";
+    uint64_t elapsed = GetCurrentTimeMicros() - begin_wait;
+    if (elapsed >= MICROS_PER_SEC) {
+        LOG(INFO) << "wait flying segcompaction finish time:" << elapsed << "us";
+    }
     if (_segcompaction_status.load() != OLAP_SUCCESS) {
         return Status::OLAPInternalError(OLAP_ERR_SEGCOMPACTION_FAILED);
     }
@@ -666,8 +667,8 @@ Status BetaRowsetWriter::_wait_flying_segcompaction() {
 
 RowsetSharedPtr BetaRowsetWriter::build() {
     Status status;
-    if (_file_writer) {
-        _file_writer->close();
+    for (auto& file_writer : _file_writers) {
+        file_writer->close();
     }
     status = _wait_flying_segcompaction();
     if (!status.ok()) {
@@ -703,7 +704,7 @@ RowsetSharedPtr BetaRowsetWriter::build() {
 
     RowsetSharedPtr rowset;
     status = RowsetFactory::create_rowset(_context.tablet_schema, _context.tablet_path,
-                                               _rowset_meta, &rowset);
+                                          _rowset_meta, &rowset);
     if (!status.ok()) {
         LOG(WARNING) << "rowset init failed when build new rowset, res=" << status;
         return nullptr;
@@ -763,12 +764,13 @@ Status BetaRowsetWriter::_do_create_segment_writer(
         std::unique_ptr<segment_v2::SegmentWriter>* writer, bool is_segcompaction, int64_t begin,
         int64_t end) {
     std::string path;
-    int32_t segment_id = _num_segment.fetch_add(1);
+    int32_t segment_id = 0;
     if (is_segcompaction) {
         DCHECK(begin >= 0 && end >= 0);
         path = BetaRowset::local_segment_path_segcompacted(_context.tablet_path, _context.rowset_id,
                                                            begin, end);
     } else {
+        segment_id = _num_segment.fetch_add(1);
         path = BetaRowset::local_segment_path(_context.tablet_path, _context.rowset_id, segment_id);
     }
     auto fs = _rowset_meta->fs();
@@ -855,7 +857,7 @@ Status BetaRowsetWriter::_flush_segment_writer(std::unique_ptr<segment_v2::Segme
     key_bounds.set_min_key(min_key.to_string());
     key_bounds.set_max_key(max_key.to_string());
 
-    statistics segstat;
+    Statistics segstat;
     segstat.row_num = row_num;
     segstat.data_size = segment_size;
     segstat.index_size = index_size;
