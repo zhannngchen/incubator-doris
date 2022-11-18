@@ -51,6 +51,7 @@ public:
         // it is found that query already exists in _fragments_ctx_map, and query mem tracker is not used.
         // query mem tracker consumption is not equal to 0 after use, because there is memory consumed
         // on query mem tracker, released on other trackers.
+        LOG(INFO) << "QueryFragmentsCtx dtor, query_id: " << print_id(query_id);
         if (query_mem_tracker->consumption() != 0) {
             LOG(INFO) << fmt::format(
                     "Deregister query/load memory tracker, queryId={}, Limit={}, CurrUsed={}, "
@@ -78,6 +79,8 @@ public:
                 is_serial ? ThreadPool::ExecutionMode::SERIAL
                           : ThreadPool::ExecutionMode::CONCURRENT,
                 concurrency);
+        _thread_token->set_debug_str(
+                strings::Substitute("user: QueryFragmentsCtx, query_id: $0", print_id(query_id)));
     }
 
     ThreadPoolToken* get_token() { return _thread_token.get(); }

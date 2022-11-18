@@ -710,6 +710,7 @@ public class Coordinator {
             String errMsg = null;
             Exception exception = null;
             Span span = triple.getLeft().scopedSpan.getSpan();
+            String beHost = triple.getLeft().brpcAddr.hostname;
             try {
                 PExecPlanFragmentResult result = triple.getRight().get(timeoutMs, TimeUnit.MILLISECONDS);
                 code = TStatusCode.findByValue(result.getStatus().getStatusCode());
@@ -738,7 +739,12 @@ public class Coordinator {
                     if (exception != null && errMsg == null) {
                         errMsg = operation + " failed. " + exception.getMessage();
                     }
-                    queryStatus.setStatus(errMsg);
+                    LOG.warn("waitRpc of be {} failed, errMsg: {}, query id: {}", beHost, errMsg,
+                            DebugUtil.printId(queryId));
+                    if (queryStatus.ok()) {
+                        // Don't override previous error status.
+                        queryStatus.setStatus(errMsg);
+                    }
                     cancelInternal(Types.PPlanFragmentCancelReason.INTERNAL_ERROR);
                     switch (code) {
                         case TIMEOUT:
@@ -1694,8 +1700,9 @@ public class Coordinator {
         // and returned_all_results_ is true.
         // (UpdateStatus() initiates cancellation, if it hasn't already been initiated)
         if (!(returnedAllResults && status.isCancelled()) && !status.ok()) {
-            LOG.warn("one instance report fail, query_id={} instance_id={}",
-                    DebugUtil.printId(queryId), DebugUtil.printId(params.getFragmentInstanceId()));
+            LOG.warn("one instance report fail, query_id={} instance_id={}, error message: {}",
+                    DebugUtil.printId(queryId), DebugUtil.printId(params.getFragmentInstanceId()),
+                    status.getErrorMsg());
             updateStatus(status, params.getFragmentInstanceId());
         }
         if (execState.done) {

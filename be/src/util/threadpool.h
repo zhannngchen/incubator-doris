@@ -396,6 +396,14 @@ public:
 
     bool need_dispatch();
 
+    void set_debug_str(const std::string& str) {
+        _debug_str = str;
+    }
+
+    std::string get_debug_str() {
+        return _debug_str;
+    }
+
     size_t num_tasks() {
         std::lock_guard<std::mutex> l(_pool->_lock);
         return _entries.size();
@@ -483,6 +491,7 @@ private:
     int _num_submitted_tasks;
     // Number of tasks which has not been submitted to the thread pool's queue.
     int _num_unsubmitted_tasks;
+    std::string _debug_str;
 
     ThreadPoolToken(const ThreadPoolToken&) = delete;
     void operator=(const ThreadPoolToken&) = delete;

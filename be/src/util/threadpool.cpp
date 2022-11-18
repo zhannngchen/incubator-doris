@@ -107,6 +107,9 @@ Status ThreadPoolToken::submit_func(std::function<void()> f) {
 
 void ThreadPoolToken::shutdown() {
     std::unique_lock<std::mutex> l(_pool->_lock);
+    if (!_debug_str.empty()) {
+        LOG(INFO) << "thread token shutdown, debug string: " << _debug_str;
+    }
     _pool->check_not_pool_thread_unlocked();
 
     // Clear the queue under the lock, but defer the releasing of the tasks
@@ -164,6 +167,10 @@ void ThreadPoolToken::wait() {
 void ThreadPoolToken::transition(State new_state) {
 #ifndef NDEBUG
     CHECK_NE(_state, new_state);
+    if (!_debug_str.empty() && (new_state == State::QUIESCED || new_state == State::QUIESCING)) {
+        LOG(INFO) << "thread token transition to QUIESCED/QUIESCING state, debug string: "
+                  << _debug_str;
+    }
 
     switch (_state) {
     case State::IDLE:
@@ -359,7 +366,9 @@ Status ThreadPool::do_submit(std::shared_ptr<Runnable> r, ThreadPoolToken* token
     }
 
     if (PREDICT_FALSE(!token->may_submit_new_tasks())) {
-        return Status::ServiceUnavailable("Thread pool({}) token was shut down", _name);
+        return Status::ServiceUnavailable(
+                "Thread pool({}) token was shut down, token debug string: {} ", _name,
+                token->get_debug_str());
     }
 
     // Size limit check.
