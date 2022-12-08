@@ -64,7 +64,8 @@ class SegmentWriter {
 public:
     explicit SegmentWriter(io::FileWriter* file_writer, uint32_t segment_id,
                            TabletSchemaSPtr tablet_schema, DataDir* data_dir,
-                           uint32_t max_row_per_segment, const SegmentWriterOptions& opts);
+                           uint32_t max_row_per_segment, const SegmentWriterOptions& opts,
+                           int64_t table_id, int64_t tablet_id, int64_t replica_id);
     ~SegmentWriter();
 
     Status init();
@@ -130,6 +131,10 @@ private:
     std::vector<const KeyCoder*> _key_coders;
     std::vector<uint16_t> _key_index_size;
     size_t _short_key_row_pos = 0;
+
+    int64_t _table_id;
+    int64_t _tablet_id;
+    int64_t _replica_id;
 };
 
 } // namespace segment_v2

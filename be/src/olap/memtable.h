@@ -49,7 +49,9 @@ public:
              const std::shared_ptr<MemTracker>& flush_mem_tracker, bool support_vec = false);
     ~MemTable();
 
+    int64_t table_id() const { return _tablet->table_id(); }
     int64_t tablet_id() const { return _tablet->tablet_id(); }
+    int64_t replica_id() const { return _tablet->replica_id(); }
     KeysType keys_type() const { return _tablet->keys_type(); }
     size_t memory_usage() const {
         return _insert_mem_tracker->consumption() + _flush_mem_tracker->consumption();

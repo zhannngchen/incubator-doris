@@ -100,6 +100,10 @@ public:
 
     int64_t tablet_id() { return _tablet->tablet_id(); }
 
+    int64_t replica_id() { return _tablet->replica_id(); }
+
+    int64_t table_id() { return _tablet->table_id(); }
+
     int32_t schema_hash() { return _tablet->schema_hash(); }
 
     void save_mem_consumption_snapshot();

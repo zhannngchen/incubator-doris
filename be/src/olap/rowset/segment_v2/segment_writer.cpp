@@ -41,7 +41,8 @@ const uint32_t k_segment_magic_length = 4;
 
 SegmentWriter::SegmentWriter(io::FileWriter* file_writer, uint32_t segment_id,
                              TabletSchemaSPtr tablet_schema, DataDir* data_dir,
-                             uint32_t max_row_per_segment, const SegmentWriterOptions& opts)
+                             uint32_t max_row_per_segment, const SegmentWriterOptions& opts,
+                             int64_t table_id, int64_t tablet_id, int64_t replica_id)
         : _segment_id(segment_id),
           _tablet_schema(tablet_schema),
           _data_dir(data_dir),
@@ -50,7 +51,10 @@ SegmentWriter::SegmentWriter(io::FileWriter* file_writer, uint32_t segment_id,
           _file_writer(file_writer),
           _mem_tracker(std::make_unique<MemTracker>("SegmentWriter:Segment-" +
                                                     std::to_string(segment_id))),
-          _olap_data_convertor(tablet_schema.get()) {
+          _olap_data_convertor(tablet_schema.get()),
+          _table_id(table_id),
+          _tablet_id(tablet_id),
+          _replica_id(replica_id) {
     CHECK_NOTNULL(file_writer);
     if (_tablet_schema->keys_type() == UNIQUE_KEYS && _opts.enable_unique_key_merge_on_write) {
         _num_key_columns = _tablet_schema->num_key_columns();
@@ -150,6 +154,13 @@ Status SegmentWriter::append_block(const vectorized::Block* block, size_t row_po
     assert(block && num_rows > 0 && row_pos + num_rows <= block->rows() &&
            block->columns() == _column_writers.size());
     _olap_data_convertor.set_source_content(block, row_pos, num_rows);
+
+    if (_table_id == config::debug_table_id) {
+        for (size_t pos = 0; pos < num_rows; pos++) {
+            LOG(INFO) << "[UKDBG][SW][" << _tablet_id << "][" << _replica_id << "] "
+                      << block->dump_one_line(pos, _num_key_columns);
+        }
+    }
 
     // find all row pos for short key indexes
     std::vector<size_t> short_key_pos;

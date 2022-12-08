@@ -201,6 +201,13 @@ void MemTable::insert(const vectorized::Block* input_block, const std::vector<in
     size_t input_size = target_block.allocated_bytes() * num_rows / target_block.rows();
     _mem_usage += input_size;
     _insert_mem_tracker->consume(input_size);
+    auto b = _input_mutable_block.to_block(0, _schema->num_key_columns());
+    if (table_id() == config::debug_table_id) {
+        for (size_t pos = 0; pos < num_rows; pos++) {
+            LOG(INFO) << "[UKDBG][MEM][" << tablet_id() << "][" << replica_id() << "] "
+                      << b.dump_one_line(pos, _schema->num_key_columns());
+        }
+    }
     for (int i = 0; i < num_rows; i++) {
         _row_in_blocks.emplace_back(new RowInBlock {cursor_in_mutableblock + i});
         _insert_one_row_from_block(_row_in_blocks.back());
@@ -220,6 +227,7 @@ void MemTable::_insert_one_row_from_block(RowInBlock* row_in_block) {
     bool is_exist = _vec_skip_list->Find(row_in_block, &_vec_hint);
     if (is_exist) {
         _aggregate_two_row_in_block(row_in_block, _vec_hint.curr->key);
+        // LOG(INFO) << "[UKDBG]" <<
     } else {
         row_in_block->init_agg_places(
                 (char*)_table_mem_pool->allocate_aligned(_total_size_of_aggregate_states, 16),
@@ -232,6 +240,7 @@ void MemTable::_insert_one_row_from_block(RowInBlock* row_in_block) {
                                      row_in_block->_row_pos, nullptr);
         }
 
+        // LOG(INFO) << "[UKDBG]" <<
         _vec_skip_list->InsertWithHint(row_in_block, is_exist, &_vec_hint);
     }
 }

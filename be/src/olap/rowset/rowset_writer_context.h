@@ -51,7 +51,9 @@ struct RowsetWriterContext {
         RowsetWriterContext context;
         context.rowset_id = StorageEngine::instance()->next_rowset_id();
         context.tablet_uid = new_tablet->tablet_uid();
+        context.table_id = new_tablet->table_id();
         context.tablet_id = new_tablet->tablet_id();
+        context.replica_id = new_tablet->replica_id();
         context.partition_id = new_tablet->partition_id();
         context.tablet_schema_hash = new_tablet->schema_hash();
         context.rowset_type = new_rowset_type;
@@ -66,7 +68,9 @@ struct RowsetWriterContext {
     }
 
     RowsetId rowset_id;
+    int64_t table_id;
     int64_t tablet_id;
+    int64_t replica_id;
     int64_t tablet_schema_hash;
     int64_t partition_id;
     RowsetTypePB rowset_type;

@@ -859,17 +859,19 @@ Status BetaRowsetWriter::_do_create_segment_writer(
     writer_options.enable_unique_key_merge_on_write = _context.enable_unique_key_merge_on_write;
 
     if (is_segcompaction) {
-        writer->reset(new segment_v2::SegmentWriter(file_writer.get(), _num_segcompacted,
-                                                    _context.tablet_schema, _context.data_dir,
-                                                    _context.max_rows_per_segment, writer_options));
+        writer->reset(new segment_v2::SegmentWriter(
+                file_writer.get(), _num_segcompacted, _context.tablet_schema, _context.data_dir,
+                _context.max_rows_per_segment, writer_options, _context.table_id,
+                _context.tablet_id, _context.replica_id));
         if (_segcompaction_file_writer != nullptr) {
             _segcompaction_file_writer->close();
         }
         _segcompaction_file_writer.reset(file_writer.release());
     } else {
-        writer->reset(new segment_v2::SegmentWriter(file_writer.get(), segment_id,
-                                                    _context.tablet_schema, _context.data_dir,
-                                                    _context.max_rows_per_segment, writer_options));
+        writer->reset(new segment_v2::SegmentWriter(
+                file_writer.get(), segment_id, _context.tablet_schema, _context.data_dir,
+                _context.max_rows_per_segment, writer_options, _context.table_id,
+                _context.tablet_id, _context.replica_id));
         {
             std::lock_guard<SpinLock> l(_lock);
             _file_writers.push_back(std::move(file_writer));
