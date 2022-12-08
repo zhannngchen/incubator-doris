@@ -1695,6 +1695,9 @@ Status Tablet::create_rowset_writer(const int64_t& txn_id, const PUniqueId& load
                                     TabletSchemaSPtr tablet_schema,
                                     std::unique_ptr<RowsetWriter>* rowset_writer) {
     RowsetWriterContext context;
+    context.table_id = table_id();
+    context.tablet_id = tablet_id();
+    context.replica_id = replica_id();
     context.txn_id = txn_id;
     context.load_id = load_id;
     context.rowset_state = rowset_state;
