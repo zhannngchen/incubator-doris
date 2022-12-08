@@ -1054,6 +1054,20 @@ std::string MutableBlock::dump_data(size_t row_limit) const {
     return out.str();
 }
 
+std::string MutableBlock::dump_one_line(size_t row, int column_end) const {
+    assert(column_end <= columns());
+    fmt::memory_buffer line;
+    for (int i = 0; i < column_end; ++i) {
+        if (LIKELY(i != 0)) {
+            // TODO: need more effective function of to string. now the impl is slow
+            fmt::format_to(line, " {}", _data_types[i]->to_string(*_columns[i].get(), row));
+        } else {
+            fmt::format_to(line, "{}", _data_types[i]->to_string(*_columns[i].get(), row));
+        }
+    }
+    return fmt::to_string(line);
+}
+
 std::unique_ptr<Block> Block::create_same_struct_block(size_t size) const {
     auto temp_block = std::make_unique<Block>();
     for (const auto& d : data) {

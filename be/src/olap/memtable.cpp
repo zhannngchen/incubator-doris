@@ -201,11 +201,10 @@ void MemTable::insert(const vectorized::Block* input_block, const std::vector<in
     size_t input_size = target_block.allocated_bytes() * num_rows / target_block.rows();
     _mem_usage += input_size;
     _insert_mem_tracker->consume(input_size);
-    auto b = _input_mutable_block.to_block(0, _schema->num_key_columns());
     if (table_id() == config::debug_table_id) {
         for (size_t pos = 0; pos < num_rows; pos++) {
             LOG(INFO) << "[UKDBG][MEM][" << tablet_id() << "][" << replica_id() << "] "
-                      << b.dump_one_line(pos, _schema->num_key_columns());
+                      << _input_mutable_block.dump_one_line(pos, _schema->num_key_columns());
         }
     }
     for (int i = 0; i < num_rows; i++) {

@@ -482,6 +482,9 @@ public:
 
     std::string dump_data(size_t row_limit = 100) const;
 
+    /** Get one line data from block, only use in load data */
+    std::string dump_one_line(size_t row, int column_end) const;
+
     void clear() {
         _columns.clear();
         _data_types.clear();
