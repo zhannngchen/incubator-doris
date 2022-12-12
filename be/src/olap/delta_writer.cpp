@@ -409,7 +409,7 @@ Status DeltaWriter::cancel() {
 
 Status DeltaWriter::cancel_with_status(const Status& st) {
     std::lock_guard<std::mutex> l(_lock);
-    if (!_is_init || _is_cancelled) {
+    if (_is_cancelled) {
         return Status::OK();
     }
     _mem_table.reset();

@@ -487,6 +487,7 @@ Status TabletsChannel::add_batch(const TabletWriterAddRequest& request,
             PTabletError* error = tablet_errors->Add();
             error->set_tablet_id(tablet_to_rowidxs_it.first);
             error->set_msg(err_msg);
+            tablet_writer_it->second->cancel_with_status(st);
             _broken_tablets.insert(tablet_to_rowidxs_it.first);
             // continue write to other tablet.
             // the error will return back to sender.
