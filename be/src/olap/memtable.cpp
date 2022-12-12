@@ -201,13 +201,6 @@ void MemTable::insert(const vectorized::Block* input_block, const std::vector<in
     size_t input_size = target_block.allocated_bytes() * num_rows / target_block.rows();
     _mem_usage += input_size;
     _insert_mem_tracker->consume(input_size);
-    if (table_id() == config::debug_table_id) {
-        for (size_t pos = 0; pos < num_rows; pos++) {
-            LOG(INFO) << "[UKDBG][MEM][" << tablet_id() << "][" << replica_id() << "] "
-                      << _input_mutable_block.dump_one_line(cursor_in_mutableblock + pos,
-                                                            _schema->num_key_columns());
-        }
-    }
     for (int i = 0; i < num_rows; i++) {
         _row_in_blocks.emplace_back(new RowInBlock {cursor_in_mutableblock + i});
         _insert_one_row_from_block(_row_in_blocks.back());
@@ -354,12 +347,22 @@ void MemTable::_collect_vskiplist_results() {
         for (it.SeekToFirst(); it.Valid(); it.Next()) {
             row_pos_vec.emplace_back(it.key()->_row_pos);
         }
+        if (table_id() == config::debug_table_id) {
+            for (size_t i = 0; i < row_pos_vec.size(); i++) {
+                LOG(INFO) << "[UKDBG][MEM][" << tablet_id() << "][" << replica_id() << "] "
+                          << in_block.dump_one_line(row_pos_vec[i], _schema->num_key_columns());
+            }
+        }
         _output_mutable_block.add_rows(&in_block, row_pos_vec.data(),
                                        row_pos_vec.data() + in_block.rows());
     } else {
         size_t idx = 0;
         for (it.SeekToFirst(); it.Valid(); it.Next()) {
             auto& block_data = in_block.get_columns_with_type_and_name();
+            if (table_id() == config::debug_table_id) {
+                LOG(INFO) << "[UKDBG][MEM][" << tablet_id() << "][" << replica_id() << "] "
+                          << in_block.dump_one_line(it.key()->_row_pos, _schema->num_key_columns());
+            }
             // move key columns
             for (size_t i = 0; i < _schema->num_key_columns(); ++i) {
                 _output_mutable_block.get_column_by_position(i)->insert_from(
