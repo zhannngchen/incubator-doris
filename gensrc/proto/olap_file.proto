@@ -229,6 +229,7 @@ message TabletSchemaPB {
     optional bool disable_auto_compaction = 15 [default=false];
     repeated TabletIndexPB index = 16;
     optional bool store_row_column = 17 [default=false]; // store tuplerow oriented column
+    optional int32 version_col_idx = 18 [default = -1];
 }
 
 enum TabletStatePB {
