@@ -531,6 +531,10 @@ struct IteratorRowRef {
         return block->compare_at(row_pos, rhs.row_pos, compare_arguments, *rhs.block, -1);
     }
 
+    void dump_one_line() const {
+        block->dump_one_line(row_pos, block->columns());
+    }
+
     void reset() {
         block = nullptr;
         row_pos = -1;

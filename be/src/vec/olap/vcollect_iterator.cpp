@@ -155,12 +155,17 @@ Status VCollectIterator::build_heap(std::vector<RowsetReaderSharedPtr>& rs_reade
 }
 
 bool VCollectIterator::LevelIteratorComparator::operator()(LevelIterator* lhs, LevelIterator* rhs) {
+    LOG(INFO) << "DBG: compare in LevelIterator";
     const IteratorRowRef& lhs_ref = *lhs->current_row_ref();
     const IteratorRowRef& rhs_ref = *rhs->current_row_ref();
+    lhs_ref.dump_one_line();
+    rhs_ref.dump_one_line();
 
     int cmp_res = UNLIKELY(lhs->compare_columns())
                           ? lhs_ref.compare(rhs_ref, lhs->compare_columns())
                           : lhs_ref.compare(rhs_ref, lhs->tablet_schema().num_key_columns());
+
+    LOG(INFO) << "DBG: compare in LevelIterator, cmp_res: " << cmp_res;
     if (cmp_res != 0) {
         return UNLIKELY(_is_reverse) ? cmp_res < 0 : cmp_res > 0;
     }
@@ -177,6 +182,7 @@ bool VCollectIterator::LevelIteratorComparator::operator()(LevelIterator* lhs, L
     // for AGG_KEYS if a version is deleted, the lower version no need to agg_update
     bool lower = (cmp_res != 0) ? (cmp_res < 0) : (lhs->version() < rhs->version());
     lower ? lhs->set_same(true) : rhs->set_same(true);
+    LOG(INFO) << "DBG: compare in LevelIterator, lower: " << lower;
 
     return lower;
 }

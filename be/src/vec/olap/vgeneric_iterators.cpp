@@ -103,12 +103,16 @@ Status VMergeIteratorContext::block_reset(const std::shared_ptr<Block>& block) {
 }
 
 bool VMergeIteratorContext::compare(const VMergeIteratorContext& rhs) const {
+    LOG(INFO) << "DBG: compare in VmergeIterator";
+    _block->dump_one_line(_index_in_block, _num_key_columns);
+    _block->dump_one_line(rhs._index_in_block, _num_key_columns);
     int cmp_res = UNLIKELY(_compare_columns)
                           ? _block->compare_at(_index_in_block, rhs._index_in_block,
                                                _compare_columns, *rhs._block, -1)
                           : _block->compare_at(_index_in_block, rhs._index_in_block,
                                                _num_key_columns, *rhs._block, -1);
 
+    LOG(INFO) << "DBG: compare in VmergeIterator, compare res: " << cmp_res;
     if (cmp_res != 0) {
         return UNLIKELY(_is_reverse) ? cmp_res < 0 : cmp_res > 0;
     }
@@ -123,6 +127,7 @@ bool VMergeIteratorContext::compare(const VMergeIteratorContext& rhs) const {
     if (_is_unique) {
         result ? set_skip(true) : rhs.set_skip(true);
     }
+    LOG(INFO) << "DBG: compare in VmergeIterator, result: " << result;
     result ? set_same(true) : rhs.set_same(true);
     return result;
 }
