@@ -52,13 +52,13 @@
         "is_in_memory": false,
         "delete_sign_idx": -1,
         "sequence_col_idx": -1,
-        "version_col_idx": -1,
         "sort_type": "LEXICAL",
         "sort_col_num": 0,
         "compression_type": "LZ4F",
         "schema_version": 0,
         "disable_auto_compaction": false,
         "store_row_column": false
+        "version_col_idx": -1,
     },
     "rs_metas": [
         {
