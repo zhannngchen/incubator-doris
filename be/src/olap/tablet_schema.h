@@ -211,7 +211,7 @@ public:
     bool has_sequence_col() const { return _sequence_col_idx != -1; }
     int32_t sequence_col_idx() const { return _sequence_col_idx; }
     void set_version_col_idx(int32_t version_col_idx) { _version_col_idx = version_col_idx; }
-    int32_t version_col_idx() { return _version_col_idx; }
+    int32_t version_col_idx() const { return _version_col_idx; }
     segment_v2::CompressionTypePB compression_type() const { return _compression_type; }
 
     const std::vector<TabletIndex>& indexes() const { return _indexes; }
