@@ -16,7 +16,7 @@
 3	6	13
 
 -- !all --
-1	10	14	0	6	14
+1	10	15	0	6	15
 15	8	19	0	4	19
 2	5	14	0	7	12
 3	6	11	0	8	13
@@ -38,7 +38,7 @@ __DORIS_VERSION_COL__	BIGINT	No	false	0	REPLACE
 __DORIS_SEQUENCE_COL__	INT	Yes	false	\N	REPLACE
 
 -- !all --
-1	10	14	0	6	14
+1	10	15	0	6	15
 15	8	19	0	4	19
 2	5	14	0	7	12
 21	8	22	0	9	22
