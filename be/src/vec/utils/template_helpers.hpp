@@ -57,15 +57,19 @@
     M(BitMap, ColumnBitmap)            \
     M(HLL, ColumnHLL)
 
+#define ARRAY_TYPE_TO_COLUMN_TYPE(M) \
+    M(Array, ColumnArray)
+
 #define TYPE_TO_BASIC_COLUMN_TYPE(M) \
     NUMERIC_TYPE_TO_COLUMN_TYPE(M)   \
     DECIMAL_TYPE_TO_COLUMN_TYPE(M)   \
     STRING_TYPE_TO_COLUMN_TYPE(M)    \
     TIME_TYPE_TO_COLUMN_TYPE(M)
 
-#define TYPE_TO_COLUMN_TYPE(M)   \
-    TYPE_TO_BASIC_COLUMN_TYPE(M) \
-    COMPLEX_TYPE_TO_COLUMN_TYPE(M)
+#define TYPE_TO_COLUMN_TYPE(M)       \
+    TYPE_TO_BASIC_COLUMN_TYPE(M)     \
+    COMPLEX_TYPE_TO_COLUMN_TYPE(M)   \
+    ARRAY_TYPE_TO_COLUMN_TYPE(M)
 
 namespace doris::vectorized {
 
