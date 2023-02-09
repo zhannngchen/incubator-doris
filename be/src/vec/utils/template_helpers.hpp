@@ -22,6 +22,7 @@
 
 #include "http/http_status.h"
 #include "vec/aggregate_functions/aggregate_function.h"
+#include "vec/columns/column_array.h"
 #include "vec/columns/column_complex.h"
 #include "vec/columns/columns_number.h"
 #include "vec/data_types/data_type.h"
