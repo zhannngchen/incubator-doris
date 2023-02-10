@@ -69,8 +69,7 @@
 
 #define TYPE_TO_COLUMN_TYPE(M)       \
     TYPE_TO_BASIC_COLUMN_TYPE(M)     \
-    COMPLEX_TYPE_TO_COLUMN_TYPE(M)   \
-    ARRAY_TYPE_TO_COLUMN_TYPE(M)
+    COMPLEX_TYPE_TO_COLUMN_TYPE(M)
 
 namespace doris::vectorized {
 

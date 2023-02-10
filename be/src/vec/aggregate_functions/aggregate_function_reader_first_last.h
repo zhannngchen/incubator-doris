@@ -248,6 +248,7 @@ static IAggregateFunction* create_function_single_value(const String& name,
         return new AggregateFunctionTemplate<Impl<ReaderFirstAndLastData< \
                 COLUMN_TYPE, result_is_nullable, arg_is_nullable, is_copy>>>(argument_types);
     TYPE_TO_COLUMN_TYPE(DISPATCH)
+    ARRAY_TYPE_TO_COLUMN_TYPE(DISPATCH)
 #undef DISPATCH
 
     LOG(FATAL) << "with unknowed type, failed in  create_aggregate_function_" << name
