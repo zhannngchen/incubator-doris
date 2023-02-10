@@ -243,6 +243,8 @@ static IAggregateFunction* create_function_single_value(const String& name,
     auto type = remove_nullable(argument_types[0]);
     WhichDataType which(*type);
 
+    LOG(INFO) << "create_aggregate_function_" << name
+               << " and type is: " << argument_types[0]->get_name();
 #define DISPATCH(TYPE, COLUMN_TYPE)                                       \
     if (which.idx == TypeIndex::TYPE)                                     \
         return new AggregateFunctionTemplate<Impl<ReaderFirstAndLastData< \
