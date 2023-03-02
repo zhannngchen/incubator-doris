@@ -145,6 +145,13 @@ Status RowsetTree::Init(const RowsetVector& rowsets) {
             string max_key = segments_key_bounds[i].max_key();
             DCHECK_LE(min_key.compare(max_key), 0)
                     << "Rowset min: " << min_key << " must be <= max: " << max_key;
+            if (min_key.compare(max_key) > 0) {
+                LOG(WARNING) << "NOT POSSIBLE! min_key " << hexdump(min_key.data(), min_key.size())
+                             << "is bigger than max_key " << hexdump(max_key.data(), max_key.size())
+                             << ", skip rowset: " << rs->rowset_id()
+                             << ", tablet path: " << rs->tablet_path();
+                continue;
+            }
 
             // Load bounds and save entry
             rsit->min_key = std::move(min_key);
