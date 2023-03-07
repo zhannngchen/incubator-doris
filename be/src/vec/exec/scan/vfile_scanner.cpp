@@ -245,6 +245,7 @@ Status VFileScanner::_init_src_block(Block* block) {
                                         slot->col_name());
         }
         MutableColumnPtr data_column = data_type->create_column();
+        LOG(INFO) << "_src_block.insert column: " << slot->col_name();
         _src_block.insert(
                 ColumnWithTypeAndName(std::move(data_column), data_type, slot->col_name()));
         _src_block_name_to_idx.emplace(slot->col_name(), idx++);
@@ -445,6 +446,7 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
 
             LOG(INFO) << "column index:" << dest_index << ", is_origin:" << is_origin_column
                       << ", origin_column_num: " << origin_column_num
+                      << ", src_block columns: " << _src_block.columns()
                       << ", src_block_reuse:" << _src_block_mem_reuse
                       << ",size:" << column_ptr->size();
         }
@@ -546,6 +548,7 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
         LOG(INFO) << "before clear, cid: " << i
                   << ", column size: " << block->get_by_position(i).column->size();
     }
+    LOG(INFO) << "src_block columns: " << _src_block.columns();
 
     // after do the dest block insert operation, clear _src_block to remove the reference of origin column
     if (_src_block_mem_reuse) {
