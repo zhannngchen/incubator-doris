@@ -150,11 +150,13 @@ void Block::insert(size_t position, ColumnWithTypeAndName&& elem) {
 }
 
 void Block::insert(const ColumnWithTypeAndName& elem) {
+    LOG(INFO) << "insert column: " << elem.name << ", data.size: " << data.size();
     index_by_name.emplace(elem.name, data.size());
     data.emplace_back(elem);
 }
 
 void Block::insert(ColumnWithTypeAndName&& elem) {
+    LOG(INFO) << "insert column(move): " << elem.name << ", data.size: " << data.size();
     index_by_name.emplace(elem.name, data.size());
     data.emplace_back(std::move(elem));
 }
