@@ -713,8 +713,10 @@ void Block::append_block_by_selector(MutableBlock* dst, const IColumn::Selector&
 Status Block::filter_block(Block* block, const std::vector<uint32_t>& columns_to_filter,
                            int filter_column_id, int column_to_keep) {
     const auto& filter_column = block->get_by_position(filter_column_id).column;
+    LOG(INFO) << "filter_block, filter_column size:" << filter_column->size();
     if (auto* nullable_column = check_and_get_column<ColumnNullable>(*filter_column)) {
         const auto& nested_column = nullable_column->get_nested_column_ptr();
+        LOG(INFO) << "filter_block, nested_column size:" << nested_column->size();
 
         MutableColumnPtr mutable_holder =
                 nested_column->use_count() == 1
