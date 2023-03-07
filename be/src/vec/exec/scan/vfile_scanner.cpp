@@ -442,6 +442,10 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
                                  ? _src_block.get_by_position(result_column_id)
                                            .column->clone_resized(rows)
                                  : _src_block.get_by_position(result_column_id).column;
+
+            LOG(INFO) << "column index:" << dest_index << ", is_origin:" << is_origin_column
+                      << ", src_block_reuse:" << _src_block_mem_reuse
+                      << ",size:" << column_ptr->size();
         }
         // column_ptr maybe a ColumnConst, convert it to a normal column
         column_ptr = column_ptr->convert_to_full_column_if_const();
@@ -501,6 +505,9 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
         } else if (slot_desc->is_nullable()) {
             column_ptr = make_nullable(column_ptr);
         }
+        LOG(INFO) << "block insert, dest_index:" << dest_index
+                  << ", column size:" << column_ptr->size()
+                  << ", col name:" << slot_desc->col_name();
         block->insert(dest_index, vectorized::ColumnWithTypeAndName(std::move(column_ptr),
                                                                     slot_desc->get_data_type_ptr(),
                                                                     slot_desc->col_name()));
