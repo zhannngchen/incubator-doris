@@ -541,6 +541,11 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
         }
     }
 
+    for (int i = 0; i < block->columns(); i++) {
+        LOG(INFO) << "before clear, cid: " << i
+                  << ", column size: " << block->get_by_position(i).column->size();
+    }
+
     // after do the dest block insert operation, clear _src_block to remove the reference of origin column
     if (_src_block_mem_reuse) {
         _src_block.clear_column_data(origin_column_num);
