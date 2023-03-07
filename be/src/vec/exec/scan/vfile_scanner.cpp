@@ -511,6 +511,8 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
         block->insert(dest_index, vectorized::ColumnWithTypeAndName(std::move(column_ptr),
                                                                     slot_desc->get_data_type_ptr(),
                                                                     slot_desc->col_name()));
+        LOG(INFO) << "after block insert, dest_index:" << dest_index
+                  << ", column size:" << block->get_by_position(dest_index).column->size();
     }
 
     // handle dynamic generated columns
