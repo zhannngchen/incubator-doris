@@ -624,14 +624,21 @@ void Block::clear() {
 void Block::clear_column_data(int column_size) noexcept {
     // data.size() greater than column_size, means here have some
     // function exec result in block, need erase it here
+    LOG(INFO) << "data.size: " << data.size() << ",column size: " << column_size;
     if (column_size != -1 and data.size() > column_size) {
         for (int i = data.size() - 1; i >= column_size; --i) {
             erase(i);
         }
     }
+    LOG(INFO) << "after clear: data.size:"  << data.size();
+    int i = 0;
     for (auto& d : data) {
+        if (d.column->use_count() != 1) {
+            LOG(WARNING) << "offset:" << i << ", use count is " << d.column->use_count();
+        }
         DCHECK_EQ(d.column->use_count(), 1);
         (*std::move(d.column)).assume_mutable()->clear();
+        i++;
     }
     row_same_bit.clear();
 }
