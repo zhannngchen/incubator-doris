@@ -548,6 +548,11 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
         _src_block.clear();
     }
 
+    for (int i = 0; i < block->columns(); i++) {
+        LOG(INFO) << "before filter, cid: " << i
+                  << ", column size: " << block->get_by_position(i).column->size();
+    }
+
     size_t dest_size = block->columns();
     // do filter
     block->insert(vectorized::ColumnWithTypeAndName(std::move(filter_column),
