@@ -81,7 +81,7 @@ Status VFileScanner::prepare(
     _io_ctx->enable_file_cache = _state->query_options().enable_file_cache;
 
     if (_is_load) {
-        _src_block_mem_reuse = false;
+        _src_block_mem_reuse = true;
         _src_row_desc.reset(new RowDescriptor(_state->desc_tbl(),
                                               std::vector<TupleId>({_input_tuple_desc->id()}),
                                               std::vector<bool>({false})));
@@ -444,7 +444,8 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
                                            .column->clone_resized(rows)
                                  : _src_block.get_by_position(result_column_id).column;
 
-            LOG(INFO) << "column index:" << dest_index << ", is_origin:" << is_origin_column
+            LOG(INFO) << "column index:" << dest_index << ",result_column_id:" << result_column_id
+                      << ", is_origin:" << is_origin_column
                       << ", origin_column_num: " << origin_column_num
                       << ", src_block columns: " << _src_block.columns()
                       << ", src_block_reuse:" << _src_block_mem_reuse
