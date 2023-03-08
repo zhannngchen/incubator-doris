@@ -207,9 +207,10 @@ void Block::erase_impl(size_t position) {
     data.erase(data.begin() + position);
 
     for (auto it = index_by_name.begin(); it != index_by_name.end();) {
-        if (it->second == position)
+        if (it->second == position) {
+            LOG(INFO) << "erasing element: " << it->first << "," << it->second;
             index_by_name.erase(it++);
-        else {
+        } else {
             if (it->second > position) --it->second;
             ++it;
         }
@@ -632,11 +633,21 @@ void Block::clear_column_data(int column_size) noexcept {
             erase(i);
         }
     }
-    LOG(INFO) << "after clear: data.size:"  << data.size();
+
+    for (auto it = index_by_name.begin(); it != index_by_name.end();) {
+        LOG(INFO) << "dump index by name:" << it->first << "," << it->second;
+    }
+
     int i = 0;
     for (auto& d : data) {
         if (d.column->use_count() != 1) {
             LOG(WARNING) << "offset:" << i << ", use count is " << d.column->use_count();
+        }
+        for (auto it = index_by_name.begin(); it != index_by_name.end();) {
+            if (it->second == i) {
+                LOG(INFO) << "clearing column data of : " << it->first << ", cid:" << it->second;
+                break;
+            }
         }
         DCHECK_EQ(d.column->use_count(), 1);
         (*std::move(d.column)).assume_mutable()->clear();
