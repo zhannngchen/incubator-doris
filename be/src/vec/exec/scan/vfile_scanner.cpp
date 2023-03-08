@@ -81,7 +81,7 @@ Status VFileScanner::prepare(
     _io_ctx->enable_file_cache = _state->query_options().enable_file_cache;
 
     if (_is_load) {
-        _src_block_mem_reuse = true;
+        _src_block_mem_reuse = false;
         _src_row_desc.reset(new RowDescriptor(_state->desc_tbl(),
                                               std::vector<TupleId>({_input_tuple_desc->id()}),
                                               std::vector<bool>({false})));
