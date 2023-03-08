@@ -445,6 +445,7 @@ Status VFileScanner::_convert_to_output_block(Block* block) {
                                  : _src_block.get_by_position(result_column_id).column;
 
             LOG(INFO) << "column index:" << dest_index << ",result_column_id:" << result_column_id
+                      << ", column name: " << _src_block.get_by_position(result_column_id).name
                       << ", is_origin:" << is_origin_column
                       << ", origin_column_num: " << origin_column_num
                       << ", src_block columns: " << _src_block.columns()

@@ -643,7 +643,7 @@ void Block::clear_column_data(int column_size) noexcept {
         if (d.column->use_count() != 1) {
             LOG(WARNING) << "offset:" << i << ", use count is " << d.column->use_count();
         }
-        for (auto it = index_by_name.begin(); it != index_by_name.end();) {
+        for (auto it = index_by_name.begin(); it != index_by_name.end(); it++) {
             if (it->second == i) {
                 LOG(INFO) << "clearing column data of : " << it->first << ", cid:" << it->second;
                 break;
