@@ -634,7 +634,7 @@ void Block::clear_column_data(int column_size) noexcept {
         }
     }
 
-    for (auto it = index_by_name.begin(); it != index_by_name.end();) {
+    for (auto it = index_by_name.begin(); it != index_by_name.end();it++) {
         LOG(INFO) << "dump index by name:" << it->first << "," << it->second;
     }
 
