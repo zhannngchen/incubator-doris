@@ -585,6 +585,9 @@ void BetaRowsetWriter::_build_rowset_meta(std::shared_ptr<RowsetMeta> rowset_met
         rowset_meta->set_segments_overlap(NONOVERLAPPING);
     }
 
+    CHECK_EQ(num_seg, segments_encoded_key_bounds.size())
+            << "num segments : " << num_seg << " is not equal to size of num key bounds"
+            << segments_encoded_key_bounds.size();
     rowset_meta->set_num_segments(num_seg);
     // TODO(zhangzhengyu): key_bounds.size() should equal num_seg, but currently not always
     rowset_meta->set_num_rows(num_rows_written + _num_rows_written);
