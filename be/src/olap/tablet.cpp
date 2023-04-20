@@ -2607,7 +2607,8 @@ Status Tablet::calc_delete_bitmap(RowsetId rowset_id,
     }
     LOG(INFO) << "construct delete bitmap tablet: " << tablet_id() << " rowset: " << rowset_id
               << " dummy_version: " << dummy_version
-              << "bitmap num: " << delete_bitmap->delete_bitmap.size()
+              << " bitmap num: " << delete_bitmap->delete_bitmap.size()
+              << " cardinality:" << delete_bitmap->cardinality()
               << " cost: " << watch.get_elapse_time_us() << "(us)";
     return Status::OK();
 }
@@ -2712,6 +2713,10 @@ Status Tablet::update_delete_bitmap(const RowsetSharedPtr& rowset, const TabletT
                 "{}, "
                 "now the num_rows: {}, delete bitmap cardinality: {}, num sgements: {}",
                 load_info->num_keys, num_rows, bitmap_cardinality, rowset->num_segments());
+        LOG(INFO) << fmt::format(
+                "expect num unique keys:{}, "
+                "now the num_rows: {}, delete bitmap cardinality: {}, num sgements: {}, tablet_id: {}",
+                load_info->num_keys, num_rows, bitmap_cardinality, rowset->num_segments(), tablet_id());
         DCHECK_EQ(load_info->num_keys, num_rows - bitmap_cardinality) << err_msg;
         if (load_info->num_keys != num_rows - bitmap_cardinality) {
             return Status::InternalError(err_msg);
