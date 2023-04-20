@@ -2700,7 +2700,7 @@ Status Tablet::update_delete_bitmap(const RowsetSharedPtr& rowset, const TabletT
     RETURN_IF_ERROR(calc_delete_bitmap(rowset->rowset_id(), segments, &rowset_ids_to_add,
                                        delete_bitmap, cur_version - 1, false));
 
-    // Check the delete_bitmap correctness, now the check is only enabled in DEBUG env.
+    // Check the delete_bitmap correctness.
     if (load_info->num_keys != 0) {
         DeleteBitmap rs_bm(tablet_id());
         delete_bitmap->subset({rowset->rowset_id(), 0, 0},
