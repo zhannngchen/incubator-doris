@@ -17,14 +17,14 @@
 
 import org.codehaus.groovy.runtime.IOGroovyMethods
 
-suite("test_unique_table_debug_data") {
+suite("test_unique_mow_table_debug_data") {
 
     sql "ADMIN SET FRONTEND CONFIG ('enable_batch_delete_by_default' = 'true')"
     sql "SET show_hidden_columns=false"
     sql "SET skip_delete_predicate=false"
     sql "SET skip_storage_engine_merge=false"
 
-    def tbName = "test_unique_table_debug_data"
+    def tbName = "test_unique_mow_table_debug_data"
     sql "DROP TABLE IF EXISTS ${tbName}"
     sql """
             CREATE TABLE IF NOT EXISTS ${tbName} (
