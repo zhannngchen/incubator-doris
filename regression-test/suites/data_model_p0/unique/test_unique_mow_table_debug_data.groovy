@@ -35,7 +35,6 @@ suite("test_unique_table_debug_data") {
             properties(
                 "replication_allocation" = "tag.location.default:1",
                 "disable_auto_compaction" = "true",
-                "enable_unique_key_merge_on_write" = "false"
             );
         """
 
@@ -53,11 +52,11 @@ suite("test_unique_table_debug_data") {
 
     // enable skip_storage_engine_merge and check select result,
     // not merged original rows are returned:
-    sql "SET skip_storage_engine_merge=true"
+    sql "SET skip_delete_bitmap=true"
     qt_select_skip_merge "select * from ${tbName} order by a, b"
 
     // turn off skip_storage_engine_merge
-    sql "SET skip_storage_engine_merge=false"
+    sql "SET skip_skip_delete_bitmap=false"
 
     // batch delete and select again:
     // curl --location-trusted -uroot: -H "column_separator:|" -H "columns:a, b" -H "merge_type: delete" -T delete.csv http://127.0.0.1:8030/api/test_skip/t1/_stream_load
@@ -68,7 +67,7 @@ suite("test_unique_table_debug_data") {
         set 'columns', 'a, b'
         set 'merge_type', 'delete'
 
-        file 'test_unique_table_debug_data_delete.csv'
+        file 'test_unique_mow_table_debug_data_delete.csv'
 
         time 10000 // limit inflight 10s
     }
@@ -87,11 +86,11 @@ suite("test_unique_table_debug_data") {
     sql "SET skip_delete_predicate=false"
 
     // enable skip_storage_engine_merge and select, rows deleted with delete statement is not returned:
-    sql "SET skip_storage_engine_merge=true"
+    sql "SET skip_delete_bitmap=true"
     qt_select_skip_merge_after_delete "select * from ${tbName} order by a, b"
 
     // enable skip_delete_predicate, rows deleted with delete statement is also returned:
-    sql "SET skip_delete_predicate=true"
+    sql "SET skip_delete_bitmap=true"
     qt_select_skip_delete2 "select * from ${tbName} order by a, b"
 
     sql "DROP TABLE ${tbName}"
