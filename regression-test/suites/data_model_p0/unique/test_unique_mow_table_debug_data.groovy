@@ -22,7 +22,7 @@ suite("test_unique_mow_table_debug_data") {
     sql "ADMIN SET FRONTEND CONFIG ('enable_batch_delete_by_default' = 'true')"
     sql "SET show_hidden_columns=false"
     sql "SET skip_delete_predicate=false"
-    sql "SET skip_storage_engine_merge=false"
+    sql "SET skip_delete_bitmap=false"
 
     def tbName = "test_unique_mow_table_debug_data"
     sql "DROP TABLE IF EXISTS ${tbName}"
@@ -34,7 +34,7 @@ suite("test_unique_mow_table_debug_data") {
             distributed by hash(a) buckets 16
             properties(
                 "replication_allocation" = "tag.location.default:1",
-                "disable_auto_compaction" = "true",
+                "disable_auto_compaction" = "true"
             );
         """
 
@@ -50,13 +50,13 @@ suite("test_unique_mow_table_debug_data") {
 
     qt_select_init "select * from ${tbName} order by a, b"
 
-    // enable skip_storage_engine_merge and check select result,
-    // not merged original rows are returned:
+    // enable skip_delete_bitmap and check select result,
+    // the rows that have duplicate primary key and marked delete, will be returned
     sql "SET skip_delete_bitmap=true"
     qt_select_skip_merge "select * from ${tbName} order by a, b"
 
-    // turn off skip_storage_engine_merge
-    sql "SET skip_skip_delete_bitmap=false"
+    // turn off skip_delete_bitmap
+    sql "SET skip_delete_bitmap=false"
 
     // batch delete and select again:
     // curl --location-trusted -uroot: -H "column_separator:|" -H "columns:a, b" -H "merge_type: delete" -T delete.csv http://127.0.0.1:8030/api/test_skip/t1/_stream_load
@@ -85,11 +85,9 @@ suite("test_unique_mow_table_debug_data") {
 
     sql "SET skip_delete_predicate=false"
 
-    // enable skip_storage_engine_merge and select, rows deleted with delete statement is not returned:
     sql "SET skip_delete_bitmap=true"
     qt_select_skip_merge_after_delete "select * from ${tbName} order by a, b"
 
-    // enable skip_delete_predicate, rows deleted with delete statement is also returned:
     sql "SET skip_delete_bitmap=true"
     qt_select_skip_delete2 "select * from ${tbName} order by a, b"
 

@@ -617,6 +617,7 @@ Status TabletReader::_init_delete_condition(const ReaderParams& read_params) {
         _filter_delete = true;
     }
 
+    LOG(INFO) << "debug: TabletReader::_init_delete_condition()";
     return _delete_handler.init(_tablet_schema, read_params.delete_predicates,
                                 read_params.version.second);
 }
