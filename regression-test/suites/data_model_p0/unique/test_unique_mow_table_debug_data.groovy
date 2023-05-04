@@ -53,7 +53,7 @@ suite("test_unique_mow_table_debug_data") {
     // enable skip_delete_bitmap and check select result,
     // the rows that have duplicate primary key and marked delete, will be returned
     sql "SET skip_delete_bitmap=true"
-    qt_select_skip_merge "select * from ${tbName} order by a, b"
+    qt_select_skip_delete_bitmap "select * from ${tbName} order by a, b"
 
     // turn off skip_delete_bitmap
     sql "SET skip_delete_bitmap=false"
@@ -86,9 +86,10 @@ suite("test_unique_mow_table_debug_data") {
     sql "SET skip_delete_predicate=false"
 
     sql "SET skip_delete_bitmap=true"
-    qt_select_skip_merge_after_delete "select * from ${tbName} order by a, b"
+    qt_select_skip_delete_bitmap_after_batch_delete "select * from ${tbName} order by a, b"
 
-    sql "SET skip_delete_bitmap=true"
+    // enable skip_delete_predicate, rows deleted with delete statement is also returned:
+    sql "SET skip_delete_predicate=true"
     qt_select_skip_delete2 "select * from ${tbName} order by a, b"
 
     sql "DROP TABLE ${tbName}"

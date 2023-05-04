@@ -186,7 +186,6 @@ Status NewOlapScanner::init() {
             }
 
             // Initialize tablet_reader_params
-            LOG(INFO) << "debug: NewOlapScanner::Open()";
             RETURN_IF_ERROR(_init_tablet_reader_params(_key_ranges, parent->_olap_filters,
                                                        parent->_filter_predicates,
                                                        parent->_push_down_functions));
@@ -205,7 +204,6 @@ Status NewOlapScanner::init() {
 Status NewOlapScanner::open(RuntimeState* state) {
     RETURN_IF_ERROR(VScanner::open(state));
 
-    LOG(INFO) << "debug: NewOlapScanner::Open()";
     auto res = _tablet_reader->init(_tablet_reader_params);
     if (!res.ok()) {
         std::stringstream ss;
@@ -312,8 +310,6 @@ Status NewOlapScanner::_init_tablet_reader_params(
               std::inserter(_tablet_reader_params.function_filters,
                             _tablet_reader_params.function_filters.begin()));
 
-    LOG(INFO) << "debug: NewOlapScanner::_init_tablet_reader_params(), init delete_predicate:"
-              << _state->skip_delete_predicate();
     if (!_state->skip_delete_predicate()) {
         auto& delete_preds = _tablet->delete_predicates();
         std::copy(delete_preds.cbegin(), delete_preds.cend(),

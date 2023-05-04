@@ -4,7 +4,7 @@
 2	11
 3	1
 
--- !select_skip_merge --
+-- !select_skip_delete_bitmap --
 1	1	0	2
 1	11	0	3
 2	1	0	2
@@ -22,16 +22,14 @@
 2	11
 3	1
 
--- !select_skip_merge_after_delete --
+-- !select_skip_delete_bitmap_after_batch_delete --
 1	1	0	2
 1	11	0	3
-1	111	1	5
 3	1	0	4
 
 -- !select_skip_delete2 --
 1	1	0	2
 1	11	0	3
-1	111	1	5
 2	1	0	2
 2	11	0	3
 3	1	0	4
