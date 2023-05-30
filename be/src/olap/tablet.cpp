@@ -2657,11 +2657,16 @@ Status Tablet::calc_delete_bitmap(RowsetSharedPtr rowset,
                                   const RowsetIdUnorderedSet* specified_rowset_ids,
                                   DeleteBitmapPtr delete_bitmap, int64_t end_version,
                                   bool check_pre_segments, RowsetWriter* rowset_writer) {
+    auto rowset_id = rowset->rowset_id();
+    if ((specified_rowset_ids == nullptr || specified_rowset_ids->empty()) && !check_pre_segments) {
+        LOG(INFO) << "skip to construct delete bitmap tablet: " << tablet_id()
+                  << " rowset: " << rowset_id;
+        return Status::OK();
+    }
+
     std::vector<segment_v2::SegmentSharedPtr> pre_segments;
     OlapStopWatch watch;
-
     Version dummy_version(end_version + 1, end_version + 1);
-    auto rowset_id = rowset->rowset_id();
     auto rowset_schema = rowset->tablet_schema();
     bool is_partial_update = rowset_schema->is_partial_update();
     // use for partial update
@@ -3019,10 +3024,8 @@ Status Tablet::update_delete_bitmap(const RowsetSharedPtr& rowset, const TabletT
         delete_bitmap->remove({to_del, 0, 0}, {to_del, UINT32_MAX, INT64_MAX});
     }
 
-    if (!rowset_ids_to_add.empty()) {
-        RETURN_IF_ERROR(calc_delete_bitmap(rowset, segments, &rowset_ids_to_add, delete_bitmap,
-                                           cur_version - 1, false, rowset_writer));
-    }
+    RETURN_IF_ERROR(calc_delete_bitmap(rowset, segments, &rowset_ids_to_add, delete_bitmap,
+                                       cur_version - 1, false, rowset_writer));
 
     // update version without write lock, compaction and publish_txn
     // will update delete bitmap, handle compaction with _rowset_update_lock
