@@ -34,7 +34,6 @@
 #include "common/logging.h"
 #include "common/status.h"
 #include "exec/tablet_info.h"
-#include "gutil/integral_types.h"
 #include "gutil/strings/numbers.h"
 #include "io/fs/file_writer.h" // IWYU pragma: keep
 #include "olap/data_dir.h"
@@ -242,6 +241,7 @@ Status DeltaWriter::write(const vectorized::Block* block, const std::vector<int>
 }
 
 Status DeltaWriter::_flush_memtable_async() {
+    _merged_rows += _mem_table->merged_rows();
     return _flush_token->submit(std::move(_mem_table));
 }
 
@@ -318,10 +318,6 @@ void DeltaWriter::_reset_mem_table() {
     _mem_table.reset(new MemTable(_tablet, _schema.get(), _tablet_schema.get(), _req.slots,
                                   _req.tuple_desc, _rowset_writer.get(), mow_context,
                                   mem_table_insert_tracker, mem_table_flush_tracker));
-
-    auto& merged_rows = _merged_rows;
-    _mem_table->set_callback(
-            [&merged_rows](int64_t ret_merged_rows) { merged_rows += ret_merged_rows; });
 }
 
 Status DeltaWriter::close() {
