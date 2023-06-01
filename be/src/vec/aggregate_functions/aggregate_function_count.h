@@ -104,7 +104,7 @@ public:
         col.resize(num_rows);
         auto* data = col.get_data().data();
         for (size_t i = 0; i != num_rows; ++i) {
-            data[i] = AggregateFunctionCount::data(places[i] + offset).count;
+            data[i] = this->data(places[i] + offset).count;
         }
     }
 
@@ -120,16 +120,15 @@ public:
         auto data = assert_cast<const ColumnUInt64&>(column).get_data().data();
         const size_t num_rows = column.size();
         for (size_t i = 0; i != num_rows; ++i) {
-            AggregateFunctionCount::data(place).count += data[i];
+            this->data(place).count += data[i];
         }
     }
 
     void serialize_without_key_to_column(ConstAggregateDataPtr __restrict place,
-                                         IColumn& to) const override {
-        auto& col = assert_cast<ColumnUInt64&>(to);
+                                         MutableColumnPtr& dst) const override {
+        auto& col = assert_cast<ColumnUInt64&>(*dst);
         col.resize(1);
-        reinterpret_cast<Data*>(col.get_data().data())->count =
-                AggregateFunctionCount::data(place).count;
+        reinterpret_cast<Data*>(col.get_data().data())->count = this->data(place).count;
     }
 
     MutableColumnPtr create_serialize_column() const override {
@@ -200,7 +199,7 @@ public:
         col.resize(num_rows);
         auto* data = col.get_data().data();
         for (size_t i = 0; i != num_rows; ++i) {
-            data[i] = AggregateFunctionCountNotNullUnary::data(places[i] + offset).count;
+            data[i] = this->data(places[i] + offset).count;
         }
     }
 
@@ -220,16 +219,15 @@ public:
         auto data = assert_cast<const ColumnUInt64&>(column).get_data().data();
         const size_t num_rows = column.size();
         for (size_t i = 0; i != num_rows; ++i) {
-            AggregateFunctionCountNotNullUnary::data(place).count += data[i];
+            this->data(place).count += data[i];
         }
     }
 
     void serialize_without_key_to_column(ConstAggregateDataPtr __restrict place,
-                                         IColumn& to) const override {
-        auto& col = assert_cast<ColumnUInt64&>(to);
+                                         MutableColumnPtr& dst) const override {
+        auto& col = assert_cast<ColumnUInt64&>(*dst);
         col.resize(1);
-        reinterpret_cast<Data*>(col.get_data().data())->count =
-                AggregateFunctionCountNotNullUnary::data(place).count;
+        reinterpret_cast<Data*>(col.get_data().data())->count = this->data(place).count;
     }
 
     MutableColumnPtr create_serialize_column() const override {

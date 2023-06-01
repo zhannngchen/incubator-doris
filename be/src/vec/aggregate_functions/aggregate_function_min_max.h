@@ -609,13 +609,13 @@ public:
     }
 
     void serialize_without_key_to_column(ConstAggregateDataPtr __restrict place,
-                                         IColumn& to) const override {
+                                         MutableColumnPtr& dst) const override {
         if constexpr (Data::IsFixedLength) {
-            auto& col = assert_cast<ColumnFixedLengthObject&>(to);
+            auto& col = assert_cast<ColumnFixedLengthObject&>(*dst);
             col.resize(1);
             *reinterpret_cast<Data*>(col.get_data().data()) = this->data(place);
         } else {
-            Base::serialize_without_key_to_column(place, to);
+            Base::serialize_without_key_to_column(place, dst);
         }
     }
 

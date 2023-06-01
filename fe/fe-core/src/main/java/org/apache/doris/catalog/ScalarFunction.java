@@ -229,10 +229,10 @@ public class ScalarFunction extends Function {
     }
 
     @Override
-    public TFunction toThrift(Type realReturnType, Type[] realArgTypes, Boolean[] realArgTypeNullables) {
-        TFunction fn = super.toThrift(realReturnType, realArgTypes, realArgTypeNullables);
+    public TFunction toThrift(Type realReturnType, Type[] realArgTypes) {
+        TFunction fn = super.toThrift(realReturnType, realArgTypes);
         fn.setScalarFn(new TScalarFunction());
-        if (getBinaryType() == TFunctionBinaryType.JAVA_UDF || getBinaryType() == TFunctionBinaryType.RPC) {
+        if (getBinaryType() != TFunctionBinaryType.BUILTIN) {
             fn.getScalarFn().setSymbol(symbolName);
         } else {
             fn.getScalarFn().setSymbol("");

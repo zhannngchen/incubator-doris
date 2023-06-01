@@ -160,8 +160,8 @@ public:
     }
 
     void serialize_without_key_to_column(ConstAggregateDataPtr __restrict place,
-                                         IColumn& to) const override {
-        auto& col = assert_cast<ColVecResult&>(to);
+                                         MutableColumnPtr& dst) const override {
+        auto& col = assert_cast<ColVecResult&>(*dst);
         col.resize(1);
         reinterpret_cast<Data*>(col.get_data().data())->sum = this->data(place).sum;
     }
