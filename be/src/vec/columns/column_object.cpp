@@ -29,8 +29,6 @@
 #include <map>
 #include <optional>
 
-#include "common/exception.h"
-#include "common/status.h"
 #include "vec/columns/column_array.h"
 #include "vec/columns/column_nullable.h"
 #include "vec/columns/columns_number.h"
@@ -160,6 +158,7 @@ private:
 /// Returns 0 for scalar fields.
 class FieldVisitorToNumberOfDimensions : public StaticVisitor<size_t> {
 public:
+    explicit FieldVisitorToNumberOfDimensions(Status* st) : _st(st) {}
     size_t operator()(const Array& x) const {
         const size_t size = x.size();
         std::optional<size_t> dimensions;
@@ -173,8 +172,8 @@ public:
             if (!dimensions) {
                 dimensions = current_dimensions;
             } else if (current_dimensions != *dimensions) {
-                throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                                       "Number of dimensions mismatched among array elements");
+                *_st = Status::InvalidArgument(
+                        "Number of dimensions mismatched among array elements");
                 return 0;
             }
         }
@@ -184,6 +183,9 @@ public:
     size_t operator()(const T&) const {
         return 0;
     }
+
+private:
+    mutable Status* _st;
 };
 
 /// Visitor that allows to get type of scalar field
@@ -215,16 +217,9 @@ public:
         return 0;
     }
     size_t operator()(const Int64& x) {
-        // // Only Int64 | Int32 at present
-        // field_types.insert(FieldType::Int64);
-        // type_indexes.insert(TypeIndex::Int64);
-        // return 0;
+        // Only Int64 at present
         field_types.insert(FieldType::Int64);
-        if (x <= std::numeric_limits<Int32>::max() && x >= std::numeric_limits<Int32>::min()) {
-            type_indexes.insert(TypeIndex::Int32);
-        } else {
-            type_indexes.insert(TypeIndex::Int64);
-        }
+        type_indexes.insert(TypeIndex::Int64);
         return 0;
     }
     size_t operator()(const Null&) {
@@ -238,8 +233,8 @@ public:
         type_indexes.insert(TypeId<NearestFieldType<T>>::value);
         return 0;
     }
-    void get_scalar_type(DataTypePtr* type) const {
-        get_least_supertype(type_indexes, type, true /*compatible with string type*/);
+    Status get_scalar_type(DataTypePtr* type) const {
+        return get_least_supertype(type_indexes, type, true /*compatible with string type*/);
     }
     bool contain_nulls() const { return have_nulls; }
     bool need_convert_field() const { return field_types.size() > 1; }
@@ -251,18 +246,21 @@ private:
 };
 
 } // namespace
-void get_field_info(const Field& field, FieldInfo* info) {
+Status get_field_info(const Field& field, FieldInfo* info) {
     FieldVisitorToScalarType to_scalar_type_visitor;
     apply_visitor(to_scalar_type_visitor, field);
     DataTypePtr type = nullptr;
-    to_scalar_type_visitor.get_scalar_type(&type);
+    RETURN_IF_ERROR(to_scalar_type_visitor.get_scalar_type(&type));
     // array item's dimension may missmatch, eg. [1, 2, [1, 2, 3]]
+    Status num_to_dimensions_status;
     *info = {
             type,
             to_scalar_type_visitor.contain_nulls(),
             to_scalar_type_visitor.need_convert_field(),
-            apply_visitor(FieldVisitorToNumberOfDimensions(), field),
+            apply_visitor(FieldVisitorToNumberOfDimensions(&num_to_dimensions_status), field),
     };
+    RETURN_IF_ERROR(num_to_dimensions_status);
+    return Status::OK();
 }
 
 ColumnObject::Subcolumn::Subcolumn(MutableColumnPtr&& data_, bool is_nullable_)
@@ -299,10 +297,10 @@ size_t ColumnObject::Subcolumn::Subcolumn::allocatedBytes() const {
     return res;
 }
 
-void ColumnObject::Subcolumn::insert(Field field) {
+Status ColumnObject::Subcolumn::insert(Field field) {
     FieldInfo info;
-    get_field_info(field, &info);
-    insert(std::move(field), std::move(info));
+    RETURN_IF_ERROR(get_field_info(field, &info));
+    return insert(std::move(field), std::move(info));
 }
 
 void ColumnObject::Subcolumn::add_new_column_part(DataTypePtr type) {
@@ -310,11 +308,11 @@ void ColumnObject::Subcolumn::add_new_column_part(DataTypePtr type) {
     least_common_type = LeastCommonType {std::move(type)};
 }
 
-void ColumnObject::Subcolumn::insert(Field field, FieldInfo info) {
+Status ColumnObject::Subcolumn::insert(Field field, FieldInfo info) {
     auto base_type = std::move(info.scalar_type);
     if (is_nothing(base_type)) {
         insertDefault();
-        return;
+        return Status::OK();
     }
     auto column_dim = least_common_type.get_dimensions();
     auto value_dim = info.num_dimensions;
@@ -325,10 +323,8 @@ void ColumnObject::Subcolumn::insert(Field field, FieldInfo info) {
         value_dim = column_dim;
     }
     if (value_dim != column_dim) {
-        throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                               "Dimension of types mismatched between inserted value and column, "
-                               "expected:{}, but meet:{} for type:{}",
-                               column_dim, value_dim, least_common_type.get()->get_name());
+        return Status::InvalidArgument(
+                "Dimension of types mismatched between inserted value and column.");
     }
     if (is_nullable && !is_nothing(base_type)) {
         base_type = make_nullable(base_type);
@@ -352,8 +348,9 @@ void ColumnObject::Subcolumn::insert(Field field, FieldInfo info) {
     } else if (!least_common_base_type->equals(*base_type) && !is_nothing(base_type)) {
         if (!schema_util::is_conversion_required_between_integers(*base_type,
                                                                   *least_common_base_type)) {
-            get_least_supertype(DataTypes {std::move(base_type), least_common_base_type},
-                                &base_type, true /*compatible with string type*/);
+            RETURN_IF_ERROR(
+                    get_least_supertype(DataTypes {std::move(base_type), least_common_base_type},
+                                        &base_type, true /*compatible with string type*/));
             type_changed = true;
             if (!least_common_base_type->equals(*base_type)) {
                 add_new_column_part(create_array_of_type(std::move(base_type), value_dim));
@@ -363,14 +360,15 @@ void ColumnObject::Subcolumn::insert(Field field, FieldInfo info) {
 
     if (type_changed || info.need_convert) {
         Field new_field;
-        convert_field_to_type(field, *least_common_type.get(), &new_field);
+        RETURN_IF_ERROR(convert_field_to_type(field, *least_common_type.get(), &new_field));
         field = new_field;
     }
 
     data.back()->insert(field);
+    return Status::OK();
 }
 
-void ColumnObject::Subcolumn::insertRangeFrom(const Subcolumn& src, size_t start, size_t length) {
+Status ColumnObject::Subcolumn::insertRangeFrom(const Subcolumn& src, size_t start, size_t length) {
     assert(src.is_finalized());
     const auto& src_column = src.data.back();
     const auto& src_type = src.least_common_type.get();
@@ -381,20 +379,18 @@ void ColumnObject::Subcolumn::insertRangeFrom(const Subcolumn& src, size_t start
         data.back()->insert_range_from(*src_column, start, length);
     } else {
         DataTypePtr new_least_common_type = nullptr;
-        get_least_supertype(DataTypes {least_common_type.get(), src_type}, &new_least_common_type,
-                            true /*compatible with string type*/);
+        RETURN_IF_ERROR(get_least_supertype(DataTypes {least_common_type.get(), src_type},
+                                            &new_least_common_type,
+                                            true /*compatible with string type*/));
         ColumnPtr casted_column;
-        Status st = schema_util::cast_column({src_column, src_type, ""}, new_least_common_type,
-                                             &casted_column);
-        if (!st.ok()) {
-            throw doris::Exception(ErrorCode::INVALID_ARGUMENT, st.to_string() + ", real_code:{}",
-                                   st.code());
-        }
+        RETURN_IF_ERROR(schema_util::cast_column({src_column, src_type, ""}, new_least_common_type,
+                                                 &casted_column));
         if (!least_common_type.get()->equals(*new_least_common_type)) {
             add_new_column_part(std::move(new_least_common_type));
         }
         data.back()->insert_range_from(*casted_column, start, length);
     }
+    return Status::OK();
 }
 
 bool ColumnObject::Subcolumn::is_finalized() const {
@@ -404,9 +400,7 @@ bool ColumnObject::Subcolumn::is_finalized() const {
 template <typename Func>
 ColumnPtr ColumnObject::apply_for_subcolumns(Func&& func, std::string_view func_name) const {
     if (!is_finalized()) {
-        // LOG(FATAL) << "Cannot " << func_name << " non-finalized ColumnObject";
-        throw doris::Exception(doris::ErrorCode::INTERNAL_ERROR,
-                               "Cannot {} non-finalized ColumnObject", func_name);
+        LOG(FATAL) << "Cannot " << func_name << " non-finalized ColumnObject";
     }
     auto res = ColumnObject::create(is_nullable);
     for (const auto& subcolumn : subcolumns) {
@@ -566,11 +560,7 @@ void ColumnObject::check_consistency() const {
     }
     for (const auto& leaf : subcolumns) {
         if (num_rows != leaf->data.size()) {
-            // LOG(FATAL) << "unmatched column:" << leaf->path.get_path()
-            //            << ", expeted rows:" << num_rows << ", but meet:" << leaf->data.size();
-            throw doris::Exception(doris::ErrorCode::INTERNAL_ERROR,
-                                   "unmatched column: {}, expeted rows: {}, but meet: {}",
-                                   leaf->path.get_path(), num_rows, leaf->data.size());
+            assert(false);
         }
     }
 }
@@ -585,8 +575,7 @@ size_t ColumnObject::size() const {
 MutableColumnPtr ColumnObject::clone_resized(size_t new_size) const {
     /// cloneResized with new_size == 0 is used for cloneEmpty().
     if (new_size != 0) {
-        throw doris::Exception(doris::ErrorCode::INTERNAL_ERROR,
-                               "ColumnObject doesn't support resize to non-zero length");
+        LOG(FATAL) << "ColumnObject doesn't support resize to non-zero length";
     }
     return ColumnObject::create(is_nullable);
 }
@@ -616,11 +605,11 @@ void ColumnObject::for_each_subcolumn(ColumnCallback callback) {
     }
 }
 
-void ColumnObject::try_insert_from(const IColumn& src, size_t n) {
+Status ColumnObject::try_insert_from(const IColumn& src, size_t n) {
     return try_insert(src[n]);
 }
 
-void ColumnObject::try_insert(const Field& field) {
+Status ColumnObject::try_insert(const Field& field) {
     const auto& object = field.get<const VariantMap&>();
     phmap::flat_hash_set<StringRef, StringRefHash> inserted;
     size_t old_size = size();
@@ -630,16 +619,16 @@ void ColumnObject::try_insert(const Field& field) {
         if (!has_subcolumn(key)) {
             bool succ = add_sub_column(key, old_size);
             if (!succ) {
-                throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                                       "Failed to add sub column {}", key.get_path());
+                return Status::InvalidArgument(
+                        fmt::format("Failed to add sub column {}", key.get_path()));
             }
         }
         auto* subcolumn = get_subcolumn(key);
         if (!subcolumn) {
-            doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                             fmt::format("Failed to find sub column {}", key.get_path()));
+            return Status::InvalidArgument(
+                    fmt::format("Failed to find sub column {}", key.get_path()));
         }
-        subcolumn->insert(value);
+        RETURN_IF_ERROR(subcolumn->insert(value));
     }
     for (auto& entry : subcolumns) {
         if (!inserted.contains(entry->path.get_path())) {
@@ -647,6 +636,7 @@ void ColumnObject::try_insert(const Field& field) {
         }
     }
     ++num_rows;
+    return Status::OK();
 }
 
 void ColumnObject::insert_default() {
@@ -684,26 +674,26 @@ Status ColumnObject::try_insert_indices_from(const IColumn& src, const int* indi
         if (*x == -1) {
             ColumnObject::insert_default();
         } else {
-            ColumnObject::try_insert_from(src, *x);
+            RETURN_IF_ERROR(ColumnObject::try_insert_from(src, *x));
         }
     }
     finalize();
     return Status::OK();
 }
 
-void ColumnObject::try_insert_range_from(const IColumn& src, size_t start, size_t length) {
+Status ColumnObject::try_insert_range_from(const IColumn& src, size_t start, size_t length) {
     const auto& src_object = assert_cast<const ColumnObject&>(src);
     if (UNLIKELY(src_object.empty())) {
-        return;
+        return Status::OK();
     }
     for (auto& entry : subcolumns) {
         if (src_object.has_subcolumn(entry->path)) {
             auto* subcolumn = src_object.get_subcolumn(entry->path);
             if (!subcolumn) {
-                throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                                       "Failed to find sub column {}", entry->path.get_path());
+                return Status::InvalidArgument(
+                        fmt::format("Failed to find sub column {}", entry->path.get_path()));
             }
-            entry->data.insertRangeFrom(*subcolumn, start, length);
+            RETURN_IF_ERROR(entry->data.insertRangeFrom(*subcolumn, start, length));
         } else {
             entry->data.insertManyDefaults(length);
         }
@@ -724,19 +714,20 @@ void ColumnObject::try_insert_range_from(const IColumn& src, size_t start, size_
                 succ = add_sub_column(entry->path, num_rows);
             }
             if (!succ) {
-                throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                                       "Failed to add column {}", entry->path.get_path());
+                return Status::InvalidArgument(
+                        fmt::format("Failed to add column {}", entry->path.get_path()));
             }
             auto* subcolumn = get_subcolumn(entry->path);
             if (!subcolumn) {
-                throw doris::Exception(doris::ErrorCode::INVALID_ARGUMENT,
-                                       "Failed to find sub column {}", entry->path.get_path());
+                return Status::InvalidArgument(
+                        fmt::format("Failed to find sub column {}", entry->path.get_path()));
             }
-            subcolumn->insertRangeFrom(entry->data, start, length);
+            RETURN_IF_ERROR(subcolumn->insertRangeFrom(entry->data, start, length));
         }
     }
     num_rows += length;
     finalize();
+    return Status::OK();
 }
 
 void ColumnObject::pop_back(size_t length) {

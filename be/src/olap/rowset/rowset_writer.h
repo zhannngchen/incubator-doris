@@ -20,24 +20,15 @@
 #include <gen_cpp/olap_file.pb.h>
 #include <gen_cpp/types.pb.h>
 
-#include "common/factory_creator.h"
 #include "gutil/macros.h"
 #include "olap/column_mapping.h"
 #include "olap/rowset/rowset.h"
 #include "olap/rowset/rowset_writer_context.h"
-#include "olap/tablet_schema.h"
 #include "vec/core/block.h"
 
 namespace doris {
 
 class MemTable;
-
-// Context for single memtable flush
-struct FlushContext {
-    ENABLE_FACTORY_CREATOR(FlushContext);
-    TabletSchemaSPtr flush_schema = nullptr;
-    const vectorized::Block* block = nullptr;
-};
 
 class RowsetWriter {
 public:
@@ -68,8 +59,7 @@ public:
     }
     virtual Status final_flush() { return Status::Error<ErrorCode::NOT_IMPLEMENTED_ERROR>(); }
 
-    virtual Status flush_single_memtable(const vectorized::Block* block, int64_t* flush_size,
-                                         const FlushContext* ctx = nullptr) {
+    virtual Status flush_single_memtable(const vectorized::Block* block, int64_t* flush_size) {
         return Status::Error<ErrorCode::NOT_IMPLEMENTED_ERROR>();
     }
 
@@ -104,9 +94,6 @@ public:
     virtual Status wait_flying_segcompaction() = 0;
 
     virtual void set_segment_start_id(int num_segment) { LOG(FATAL) << "not supported!"; }
-
-    virtual vectorized::schema_util::LocalSchemaChangeRecorder*
-    mutable_schema_change_recorder() = 0;
 
 private:
     DISALLOW_COPY_AND_ASSIGN(RowsetWriter);

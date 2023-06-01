@@ -30,8 +30,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "common/exception.h"
-#include "common/status.h"
 #include "vec/common/field_visitors.h"
 #include "vec/common/typeid_cast.h"
 #include "vec/core/accurate_comparison.h"
@@ -96,9 +94,8 @@ Field convert_numeric_type_impl(const Field& from) {
     }
     return result;
 }
-
 template <typename To>
-void convert_numric_type(const Field& from, const IDataType& type, Field* to) {
+Status convert_numric_type(const Field& from, const IDataType& type, Field* to) {
     if (from.get_type() == Field::Types::UInt64) {
         *to = convert_numeric_type_impl<UInt64, To>(from);
     } else if (from.get_type() == Field::Types::Int64) {
@@ -110,17 +107,18 @@ void convert_numric_type(const Field& from, const IDataType& type, Field* to) {
     } else if (from.get_type() == Field::Types::Int128) {
         *to = convert_numeric_type_impl<Int128, To>(from);
     } else {
-        throw doris::Exception(ErrorCode::INVALID_ARGUMENT,
-                               "Type mismatch in IN or VALUES section. Expected: {}. Got: {}",
-                               type.get_name(), from.get_type());
+        return Status::InvalidArgument(
+                fmt::format("Type mismatch in IN or VALUES section. Expected: {}. Got: {}",
+                            type.get_name(), from.get_type()));
     }
+    return Status::OK();
 }
 
-void convert_field_to_typeImpl(const Field& src, const IDataType& type,
-                               const IDataType* from_type_hint, Field* to) {
+Status convert_field_to_typeImpl(const Field& src, const IDataType& type,
+                                 const IDataType* from_type_hint, Field* to) {
     if (from_type_hint && from_type_hint->equals(type)) {
         *to = src;
-        return;
+        return Status::OK();
     }
     WhichDataType which_type(type);
     // TODO add more types
@@ -165,16 +163,16 @@ void convert_field_to_typeImpl(const Field& src, const IDataType& type,
             src.get_type() == Field::Types::UInt64) {
             /// We don't need any conversion UInt64 is under type of Date and DateTime
             *to = src;
-            return;
+            return Status::OK();
         }
     } else if (which_type.is_string_or_fixed_string()) {
         if (src.get_type() == Field::Types::String) {
             *to = src;
-            return;
+            return Status::OK();
         }
         // TODO this is a very simple translator, support more complex types
         *to = apply_visitor(FieldVisitorToStringSimple(), src);
-        return;
+        return Status::OK();
     } else if (const DataTypeArray* type_array = typeid_cast<const DataTypeArray*>(&type)) {
         if (src.get_type() == Field::Types::Array) {
             const Array& src_arr = src.get<Array>();
@@ -182,14 +180,14 @@ void convert_field_to_typeImpl(const Field& src, const IDataType& type,
             const auto& element_type = *(type_array->get_nested_type());
             Array res(src_arr_size);
             for (size_t i = 0; i < src_arr_size; ++i) {
-                convert_field_to_type(src_arr[i], element_type, &res[i]);
+                RETURN_IF_ERROR(convert_field_to_type(src_arr[i], element_type, &res[i]));
                 if (res[i].is_null() && !element_type.is_nullable()) {
-                    throw doris::Exception(ErrorCode::INVALID_ARGUMENT, "Cannot convert NULL to {}",
-                                           element_type.get_name());
+                    return Status::InvalidArgument(
+                            fmt::format("Cannot convert NULL to {}", element_type.get_name()));
                 }
             }
             *to = Field(res);
-            return;
+            return Status::OK();
         }
     }
     // else if (const DataTypeTuple* type_tuple = typeid_cast<const DataTypeTuple*>(&type)) {
@@ -231,31 +229,31 @@ void convert_field_to_typeImpl(const Field& src, const IDataType& type,
     //         return Status::OK();
     //     }
     // }
-    throw doris::Exception(ErrorCode::INVALID_ARGUMENT,
-                           "Type mismatch in IN or VALUES section. Expected: {}. Got: {}",
-                           type.get_name(), src.get_type());
+    return Status::InvalidArgument(
+            fmt::format("Type mismatch in IN or VALUES section. Expected: {}. Got: {}",
+                        type.get_name(), src.get_type()));
 }
 } // namespace
-void convert_field_to_type(const Field& from_value, const IDataType& to_type, Field* to,
-                           const IDataType* from_type_hint) {
+Status convert_field_to_type(const Field& from_value, const IDataType& to_type, Field* to,
+                             const IDataType* from_type_hint) {
     if (from_value.is_null()) {
         *to = from_value;
-        return;
+        return Status::OK();
     }
     if (from_type_hint && from_type_hint->equals(to_type)) {
         *to = from_value;
-        return;
+        return Status::OK();
     }
     if (const auto* nullable_type = typeid_cast<const DataTypeNullable*>(&to_type)) {
         const IDataType& nested_type = *nullable_type->get_nested_type();
         /// NULL remains NULL after any conversion.
         if (WhichDataType(nested_type).is_nothing()) {
             *to = {};
-            return;
+            return Status::OK();
         }
         if (from_type_hint && from_type_hint->equals(nested_type)) {
             *to = from_value;
-            return;
+            return Status::OK();
         }
         return convert_field_to_typeImpl(from_value, nested_type, from_type_hint, to);
     } else {
