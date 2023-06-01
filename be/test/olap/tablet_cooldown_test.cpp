@@ -356,9 +356,7 @@ void createTablet(StorageEngine* engine, TabletSharedPtr* tablet, int64_t replic
     WriteRequest write_req = {tablet_id, schema_hash, WriteType::LOAD,        txn_id, partition_id,
                               load_id,   tuple_desc,  &(tuple_desc->slots()), false,  &param};
     DeltaWriter* delta_writer = nullptr;
-    std::unique_ptr<RuntimeProfile> profile;
-    profile = std::make_unique<RuntimeProfile>("LoadChannels");
-    DeltaWriter::open(&write_req, &delta_writer, profile.get());
+    DeltaWriter::open(&write_req, &delta_writer);
     ASSERT_NE(delta_writer, nullptr);
 
     vectorized::Block block;
