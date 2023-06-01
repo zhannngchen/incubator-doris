@@ -240,6 +240,11 @@ void MemTable::_aggregate_two_row_in_block(vectorized::MutableBlock& mutable_blo
 }
 void MemTable::_put_into_output(vectorized::Block& in_block) {
     SCOPED_RAW_TIMER(&_stat.put_into_output_ns);
+    if (_keys_type == KeysType::DUP_KEYS && _schema->num_key_columns() == 0) {
+        // skip sort if the table is dup table without keys
+        _output_mutable_block.swap(_input_mutable_block);
+        return;
+    }
     std::vector<int> row_pos_vec;
     DCHECK(in_block.rows() <= std::numeric_limits<int>::max());
     row_pos_vec.reserve(in_block.rows());
@@ -467,12 +472,8 @@ Status MemTable::_do_flush() {
     SCOPED_CONSUME_MEM_TRACKER(_flush_mem_tracker);
     int same_keys_num = _sort();
     if (_keys_type == KeysType::DUP_KEYS || same_keys_num == 0) {
-        if (_keys_type == KeysType::DUP_KEYS && _schema->num_key_columns() == 0) {
-            _output_mutable_block.swap(_input_mutable_block);
-        } else {
-            vectorized::Block in_block = _input_mutable_block.to_block();
-            _put_into_output(in_block);
-        }
+        vectorized::Block in_block = _input_mutable_block.to_block();
+        _put_into_output(in_block);
     } else {
         _aggregate<true>();
     }
