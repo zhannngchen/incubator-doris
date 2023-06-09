@@ -458,6 +458,9 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                 _row_sources_buffer->buffered_size() - row_buffer_size_start;
         auto merged_rows_cur_batch = _merged_rows - merged_rows_start;
         auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
+        LOG(INFO) << "DEBUG: row buffer size: " << row_buffer_size_cur_batch
+                  << ", block rows: " << block->rows() << ", merged rows: " << merged_rows_cur_batch
+                  << ", filtered rows: " << filtered_rows_cur_batch;
         CHECK_EQ(row_buffer_size_cur_batch,
                   block->rows() + merged_rows_cur_batch + filtered_rows_cur_batch);
         *eof = (res.is<END_OF_FILE>());
