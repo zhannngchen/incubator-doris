@@ -106,20 +106,17 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
             RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
         }
         size_t start_offset = 0, limit = num_rows;
-        if (num_rows_written + num_rows >= num_rows_key_group) {
+        if (num_rows_written + num_rows >= num_rows_key_group &&
+            _cur_writer_idx < _segment_writers.size() - 1) {
             RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->append_block(
                     block, 0, num_rows_key_group - num_rows_written));
             RETURN_IF_ERROR(_flush_columns(&_segment_writers[_cur_writer_idx]));
             start_offset = num_rows_key_group - num_rows_written;
             limit = num_rows - start_offset;
             ++_cur_writer_idx;
-            if (_cur_writer_idx < _segment_writers.size()) {
-                // switch to next writer
-                VLOG_NOTICE << "init next value column segment writer: " << _cur_writer_idx;
-                RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
-            } else {
-                CHECK(limit == 0);
-            }
+            // switch to next writer
+            VLOG_NOTICE << "init next value column segment writer: " << _cur_writer_idx;
+            RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
         }
         if (limit > 0) {
             RETURN_IF_ERROR(
