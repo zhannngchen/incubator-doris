@@ -456,7 +456,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         auto row_buffer_size_cur_batch = _row_sources_buffer->buffered_size() - row_source_idx;
         auto merged_rows_cur_batch = _merged_rows - merged_rows_start;
         auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
-        DCHECK_EQ(row_buffer_size_cur_batch,
+        CHECK_EQ(row_buffer_size_cur_batch,
                   block->rows() + merged_rows_cur_batch + filtered_rows_cur_batch);
         *eof = (res.is<END_OF_FILE>());
         _eof = *eof;
