@@ -97,7 +97,7 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
     } else {
         // value columns
         uint32_t num_rows_written = _segment_writers[_cur_writer_idx]->num_rows_written();
-        uint32_t num_rows_key_group = _segment_writers[_cur_writer_idx]->num_rows();
+        uint32_t num_rows_key_group = _segment_writers[_cur_writer_idx]->row_count();
         VLOG_NOTICE << "num_rows_written: " << num_rows_written
                     << ", _cur_writer_idx: " << _cur_writer_idx;
         // init if it's first value column write in current segment
