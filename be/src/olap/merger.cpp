@@ -41,7 +41,6 @@
 #include "olap/rowset/rowset_meta.h"
 #include "olap/rowset/rowset_writer.h"
 #include "olap/rowset/segment_v2/segment_writer.h"
-#include "olap/rowset/vertical_beta_rowset_writer.h"
 #include "olap/storage_engine.h"
 #include "olap/tablet.h"
 #include "olap/utils.h"
@@ -276,7 +275,7 @@ Status Merger::vertical_compact_one_group(
         CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
                                                           stats_output->merged_rows +
                                                           stats_output->filtered_rows);
-        ((VerticalBetaRowsetWriter*)dst_rowset_writer)->set_total_rows(stats_output->output_rows);
+        CHECK_EQ(stats_output->output_rows, dst_rowset_writer->num_rows());
     }
 
     return Status::OK();

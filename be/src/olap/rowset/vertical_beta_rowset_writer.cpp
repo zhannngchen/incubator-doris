@@ -154,6 +154,7 @@ Status VerticalBetaRowsetWriter::_flush_columns(
     uint64_t index_size = 0;
     if (is_key) {
         _total_key_group_rows += (*segment_writer)->row_count();
+        _raw_num_rows_written = _total_key_group_rows;
     }
     VLOG_NOTICE << "flush columns index: " << _cur_writer_idx;
     RETURN_IF_ERROR((*segment_writer)->finalize_columns_data());
