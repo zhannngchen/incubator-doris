@@ -243,7 +243,7 @@ Status Merger::vertical_compact_one_group(
         RETURN_NOT_OK_STATUS_WITH_WARN(
                 reader.next_block_with_aggregation(&block, &eof),
                 "failed to read next block when merging rowsets of tablet " + tablet->full_name());
-        if (eof) {
+        if (!is_key && eof) {
             CHECK_EQ(output_rows + block.rows(), stats_output->output_rows);
         }
         RETURN_NOT_OK_STATUS_WITH_WARN(
