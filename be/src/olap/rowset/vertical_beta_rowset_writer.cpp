@@ -97,6 +97,7 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
     } else {
         // value columns
         uint32_t num_rows_written = _segment_writers[_cur_writer_idx]->num_rows_written();
+        uint32_t num_rows_key_group = _segment_writers[_cur_writer_idx]->num_rows();
         VLOG_NOTICE << "num_rows_written: " << num_rows_written
                     << ", _cur_writer_idx: " << _cur_writer_idx;
         // init if it's first value column write in current segment
@@ -104,14 +105,22 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
             VLOG_NOTICE << "init first value column segment writer";
             RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
         }
-        if (num_rows_written > max_rows_per_segment) {
+        size_t start_offset = 0, limit = num_rows;
+        if (num_rows_written + num_rows >= num_rows_key_group) {
+            RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->append_block(
+                    block, 0, num_rows_key_group - num_rows_written));
             RETURN_IF_ERROR(_flush_columns(&_segment_writers[_cur_writer_idx]));
-            // switch to next writer
+            start_offset = num_rows_key_group - num_rows_written;
+            limit = num_rows - start_offset;
             ++_cur_writer_idx;
+            // switch to next writer
             VLOG_NOTICE << "init next value column segment writer: " << _cur_writer_idx;
             RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
         }
-        RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->append_block(block, 0, num_rows));
+        if (limit > 0) {
+            RETURN_IF_ERROR(
+                    _segment_writers[_cur_writer_idx]->append_block(block, start_offset, limit));
+        }
     }
     if (is_key) {
         _num_rows_written += num_rows;
