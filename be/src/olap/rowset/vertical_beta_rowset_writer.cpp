@@ -113,7 +113,7 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
                     block, 0, num_rows_key_group - num_rows_written));
             RETURN_IF_ERROR(_flush_columns(&_segment_writers[_cur_writer_idx]));
             start_offset = num_rows_key_group - num_rows_written;
-            CHECK(start_offset < num_rows);
+            CHECK(start_offset <= num_rows);
             limit = num_rows - start_offset;
             ++_cur_writer_idx;
             // switch to next writer
