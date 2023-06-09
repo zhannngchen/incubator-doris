@@ -120,7 +120,8 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
                     << "nw before: " << num_rows_written << ", nwk before: " << num_rows_key_group
                     << ", block rows: " << num_rows
                     << ", nw after: " << _segment_writers[_cur_writer_idx]->num_rows_written()
-                    << ", nwk after: " << _segment_writers[_cur_writer_idx]->row_count();
+                    << ", nwk after: " << _segment_writers[_cur_writer_idx]->row_count()
+                    << "_cur_writer_idx: " << _cur_writer_idx << ", size: " << _segment_writers.size();
             limit = num_rows - start_offset;
             ++_cur_writer_idx;
             // switch to next writer
@@ -138,7 +139,8 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
                     << "nw before: " << num_rows_written << ", nwk before: " << num_rows_key_group
                     << ", write start: " << start_offset << ", limit: " << limit
                     << ", nw after: " << _segment_writers[_cur_writer_idx]->num_rows_written()
-                    << ", nwk after: " << _segment_writers[_cur_writer_idx]->row_count();
+                    << ", nwk after: " << _segment_writers[_cur_writer_idx]->row_count()
+                    << "_cur_writer_idx: " << _cur_writer_idx << ", size: " << _segment_writers.size();
         }
     }
     if (is_key) {
