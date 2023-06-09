@@ -47,6 +47,11 @@ public:
     // flush when all column finished, flush column footer
     Status final_flush();
 
+    void set_total_rows(size_t rows) {
+        _total_rows = rows;
+        CHECK_EQ(_total_key_group_rows, _total_rows);
+    }
+
 private:
     // only key group will create segment writer
     Status _create_segment_writer(const std::vector<uint32_t>& column_ids, bool is_key,
@@ -58,6 +63,8 @@ private:
 private:
     std::vector<std::unique_ptr<segment_v2::SegmentWriter>> _segment_writers;
     size_t _cur_writer_idx = 0;
+    size_t _total_rows = 0;
+    size_t _total_key_group_rows = 0;
 };
 
 } // namespace doris

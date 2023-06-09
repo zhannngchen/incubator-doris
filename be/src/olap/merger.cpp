@@ -41,6 +41,7 @@
 #include "olap/rowset/rowset_meta.h"
 #include "olap/rowset/rowset_writer.h"
 #include "olap/rowset/segment_v2/segment_writer.h"
+#include "olap/rowset/vertical_beta_rowset_writer.h"
 #include "olap/storage_engine.h"
 #include "olap/tablet.h"
 #include "olap/utils.h"
@@ -243,6 +244,9 @@ Status Merger::vertical_compact_one_group(
         RETURN_NOT_OK_STATUS_WITH_WARN(
                 reader.next_block_with_aggregation(&block, &eof),
                 "failed to read next block when merging rowsets of tablet " + tablet->full_name());
+        if (eof) {
+            CHECK_EQ(output_rows + block.rows(), stats_output->output_rows);
+        }
         RETURN_NOT_OK_STATUS_WITH_WARN(
                 dst_rowset_writer->add_columns(&block, column_group, is_key, max_rows_per_segment),
                 "failed to write block when merging rowsets of tablet " + tablet->full_name());
@@ -267,6 +271,13 @@ Status Merger::vertical_compact_one_group(
         stats_output->filtered_rows = reader.filtered_rows();
     }
     RETURN_IF_ERROR(dst_rowset_writer->flush_columns(is_key));
+
+    if (is_key) {
+        CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
+                                                          stats_output->merged_rows +
+                                                          stats_output->filtered_rows);
+        ((VerticalBetaRowsetWriter*)dst_rowset_writer)->set_total_rows(stats_output->output_rows);
+    }
 
     return Status::OK();
 }

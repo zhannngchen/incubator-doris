@@ -390,6 +390,7 @@ private:
     const Schema* _schema = nullptr;
 
     int _block_row_max = 0;
+    size_t filtered_rows = 0;
     RowSourcesBuffer* _row_sources_buf;
     StorageReadOptions _opts;
 };

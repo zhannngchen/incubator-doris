@@ -152,6 +152,9 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
 Status VerticalBetaRowsetWriter::_flush_columns(
         std::unique_ptr<segment_v2::SegmentWriter>* segment_writer, bool is_key) {
     uint64_t index_size = 0;
+    if (is_key) {
+        _total_key_group_rows += (*segment_writer)->row_count();
+    }
     VLOG_NOTICE << "flush columns index: " << _cur_writer_idx;
     RETURN_IF_ERROR((*segment_writer)->finalize_columns_data());
     RETURN_IF_ERROR((*segment_writer)->finalize_columns_index(&index_size));
