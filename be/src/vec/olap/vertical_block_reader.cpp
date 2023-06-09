@@ -401,7 +401,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         // after we get current block
         auto row_source_idx = _row_sources_buffer->buffered_size();
         auto row_buffer_size_start = row_source_idx;
-        auto merged_rows_start = _merged_rows;
+        auto merged_rows_start = _vcollect_iter->merged_rows();
         auto filtered_rows_start = _stats.rows_del_filtered;
 
         auto res = _vcollect_iter->next_batch(block);
@@ -456,7 +456,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         }
         auto row_buffer_size_cur_batch =
                 _row_sources_buffer->buffered_size() - row_buffer_size_start;
-        auto merged_rows_cur_batch = _merged_rows - merged_rows_start;
+        auto merged_rows_cur_batch = _vcollect_iter->merged_rows() - merged_rows_start;
         auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
 
         if (row_buffer_size_cur_batch !=
