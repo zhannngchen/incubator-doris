@@ -400,6 +400,8 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         // we calc delete sign column if it's base compaction and update row_sourece_buffer's agg flag
         // after we get current block
         auto row_source_idx = _row_sources_buffer->buffered_size();
+        auto merged_rows_start = _merged_rows;
+        auto filtered_rows_start = _stats.rows_del_filtered;
 
         auto res = _vcollect_iter->next_batch(block);
         if (UNLIKELY(!res.ok() && !res.is<END_OF_FILE>())) {
@@ -451,6 +453,11 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
             _stats.rows_del_filtered += block_rows - block->rows();
             DCHECK(block->try_get_by_name("__DORIS_COMPACTION_FILTER__") == nullptr);
         }
+        auto row_buffer_size_cur_batch = _row_sources_buffer->buffered_size() - row_source_idx;
+        auto merged_rows_cur_batch = _merged_rows - merged_rows_start;
+        auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
+        DCHECK_EQ(row_buffer_size_cur_batch,
+                  block->rows() + merged_rows_cur_batch + filtered_rows_cur_batch);
         *eof = (res.is<END_OF_FILE>());
         _eof = *eof;
         return Status::OK();
