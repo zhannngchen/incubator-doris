@@ -98,7 +98,8 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
         // value columns
         uint32_t num_rows_written = _segment_writers[_cur_writer_idx]->num_rows_written();
         uint32_t num_rows_key_group = _segment_writers[_cur_writer_idx]->row_count();
-        VLOG_NOTICE << "num_rows_written: " << num_rows_written
+        CHECK(num_rows_key_group > 0);
+        LOG(INFO) << "DEBUG: num_rows_written: " << num_rows_written
                     << ", _cur_writer_idx: " << _cur_writer_idx;
         // init if it's first value column write in current segment
         if (_cur_writer_idx == 0 && num_rows_written == 0) {
@@ -112,10 +113,11 @@ Status VerticalBetaRowsetWriter::add_columns(const vectorized::Block* block,
                     block, 0, num_rows_key_group - num_rows_written));
             RETURN_IF_ERROR(_flush_columns(&_segment_writers[_cur_writer_idx]));
             start_offset = num_rows_key_group - num_rows_written;
+            CHECK(start_offset < num_rows);
             limit = num_rows - start_offset;
             ++_cur_writer_idx;
             // switch to next writer
-            VLOG_NOTICE << "init next value column segment writer: " << _cur_writer_idx;
+            LOG(INFO) << "DEBUG: init next value column segment writer: " << _cur_writer_idx;
             RETURN_IF_ERROR(_segment_writers[_cur_writer_idx]->init(col_ids, is_key));
         }
         if (limit > 0) {
