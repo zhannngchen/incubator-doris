@@ -402,13 +402,13 @@ Status VerticalHeapMergeIterator::next_batch(Block* block) {
         } else {
             tmp_row_sources.emplace_back(ctx->order(), false);
         }
-        LOG(INFO) << "DEBUG: "<< "add 1 row to buffer, is_same: " << ctx->is_same();
+         // LOG(INFO) << "DEBUG: "<< "add 1 row to buffer, is_same: " << ctx->is_same();
         if (ctx->is_same() &&
             (_keys_type == KeysType::UNIQUE_KEYS || _keys_type == KeysType::AGG_KEYS)) {
             // skip cur row, copy pre ctx
             ++_merged_rows;
             if (pre_ctx) {
-                LOG(INFO) << "DEBUG: copied " << pre_ctx->cur_batch_num() << " rows, encounter same key";
+                // LOG(INFO) << "DEBUG: copied " << pre_ctx->cur_batch_num() << " rows, encounter same key";
                 pre_ctx->copy_rows(block);
                 pre_ctx = nullptr;
             }
@@ -416,7 +416,7 @@ Status VerticalHeapMergeIterator::next_batch(Block* block) {
             ctx->add_cur_batch();
             if (pre_ctx != ctx) {
                 if (pre_ctx) {
-                    LOG(INFO) << "DEBUG: copied " << pre_ctx->cur_batch_num() << " rows, switch ctx";
+                    // LOG(INFO) << "DEBUG: copied " << pre_ctx->cur_batch_num() << " rows, switch ctx";
                     pre_ctx->copy_rows(block);
                 }
                 pre_ctx = ctx;
@@ -428,7 +428,7 @@ Status VerticalHeapMergeIterator::next_batch(Block* block) {
             if (ctx->is_cur_block_finished() || row_idx >= _block_row_max) {
                 // current block finished, ctx not advance
                 // so copy start_idx = (_index_in_block - _cur_batch_num + 1)
-                LOG(INFO) << "DEBUG: copied " << ctx->cur_batch_num() << " rows, cur block finished";
+                // LOG(INFO) << "DEBUG: copied " << ctx->cur_batch_num() << " rows, cur block finished";
                 ctx->copy_rows(block, false);
                 pre_ctx = nullptr;
             }
