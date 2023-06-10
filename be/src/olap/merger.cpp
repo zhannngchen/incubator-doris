@@ -245,6 +245,20 @@ Status Merger::vertical_compact_one_group(
                 "failed to read next block when merging rowsets of tablet " + tablet->full_name());
         if (!is_key && eof) {
             CHECK_EQ(dst_rowset_writer->num_rows(), stats_output->output_rows);
+            if (dst_rowset_writer->num_rows() !=
+                row_source_buf->buffered_size() - reader.merged_rows()) {
+                row_source_buf->seek_to_begin();
+                uint32_t agg_rows = 0;
+                for (int i = 0; i < row_source_buf->buffered_size(); i++) {
+                    row_source_buf->advance();
+                    auto rs = row_source_buf->current();
+                    if (rs.agg_flag()) {
+                        agg_rows++;
+                    }
+                }
+                LOG(INFO) << "DEBUG: reader merge rows: " << reader.merged_rows()
+                          << ", num agg flags: " << agg_rows;
+            }
             CHECK_EQ(dst_rowset_writer->num_rows(), row_source_buf->buffered_size() - reader.merged_rows())
                     << "dst rowset writer key group rows: " << dst_rowset_writer->num_rows()
                     << "row source buf size: " << row_source_buf->buffered_size()
@@ -285,6 +299,9 @@ Status Merger::vertical_compact_one_group(
         CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
                                                           stats_output->merged_rows +
                                                           stats_output->filtered_rows);
+        LOG(INFO) << "DEBUG: tablet_id : " << tablet->tablet_id() << " | "
+                  << row_source_buf->buffered_size() << ", " << stats_output->merged_rows << ", "
+                  << stats_output->filtered_rows;
         CHECK_EQ(stats_output->output_rows, dst_rowset_writer->num_rows());
     }
 
