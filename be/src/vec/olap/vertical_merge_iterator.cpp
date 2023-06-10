@@ -116,6 +116,12 @@ void RowSourcesBuffer::set_agg_flag(uint64_t index, bool agg) {
     _buffer->get_data()[index] = ori.data();
 }
 
+bool RowSourcesBuffer::get_agg_flag(uint64_t index) {
+    DCHECK(index < _buffer->size());
+    RowSource ori(_buffer->get_data()[index]);
+    return ori.agg_flag();
+}
+
 size_t RowSourcesBuffer::continuous_agg_count(uint64_t index) {
     size_t result = 1;
     int start = index + 1;

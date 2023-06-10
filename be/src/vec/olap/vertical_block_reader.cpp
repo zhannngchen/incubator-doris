@@ -415,6 +415,14 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
             }
             DCHECK_EQ(_block_row_locations.size(), block->rows());
         }
+
+        size_t merged_rows_in_rs_buffer = 0;
+        for (auto i = row_buffer_size_start; i < _row_sources_buffer->buffered_size(); i++) {
+            if (_row_sources_buffer->get_agg_flag(i)) {
+                merged_rows_in_rs_buffer++;
+            }
+        }
+
         auto block_rows = block->rows();
         if (_filter_delete && block_rows > 0) {
             int ori_delete_sign_idx = _reader_context.tablet_schema->field_index(DELETE_SIGN);
@@ -454,10 +462,32 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
             _stats.rows_del_filtered += block_rows - block->rows();
             DCHECK(block->try_get_by_name("__DORIS_COMPACTION_FILTER__") == nullptr);
         }
+
+        size_t filtered_rows_in_rs_buffer = 0;
+        for (auto i = row_buffer_size_start; i < _row_sources_buffer->buffered_size(); i++) {
+            if (_row_sources_buffer->get_agg_flag(i)) {
+                filtered_rows_in_rs_buffer++;
+            }
+        }
+        filtered_rows_in_rs_buffer -= merged_rows_in_rs_buffer;
+
+
         auto row_buffer_size_cur_batch =
                 _row_sources_buffer->buffered_size() - row_buffer_size_start;
         auto merged_rows_cur_batch = _vcollect_iter->merged_rows() - merged_rows_start;
         auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
+
+        if (merged_rows_in_rs_buffer != merged_rows_cur_batch) {
+            LOG(INFO) << "ERROR: "
+                      << "merged rows in rs buffer: " << merged_rows_in_rs_buffer
+                      << ", cur batch: " << merged_rows_cur_batch;
+        }
+
+        if (filtered_rows_in_rs_buffer != filtered_rows_cur_batch) {
+            LOG(INFO) << "ERROR: "
+                      << "filtered rows in rs buffer: " << filtered_rows_in_rs_buffer
+                      << ", cur batch: " << filtered_rows_cur_batch;
+        }
 
         if (row_buffer_size_cur_batch !=
             block->rows() + merged_rows_cur_batch + filtered_rows_cur_batch) {

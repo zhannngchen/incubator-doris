@@ -113,6 +113,7 @@ public:
     uint64_t total_size() const { return _total_size; }
     uint64_t buffered_size() { return _buffer->size(); }
     void set_agg_flag(uint64_t index, bool agg);
+    bool get_agg_flag(uint64_t index);
 
     Status has_remaining();
 
