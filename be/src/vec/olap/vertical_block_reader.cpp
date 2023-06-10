@@ -453,7 +453,10 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                 filter_data[i] = sign;
                 if (UNLIKELY(!sign)) {
                     rows_should_be_deleted++;
-                    CHECK(!_row_sources_buffer->get_agg_flag(row_source_idx));
+                    CHECK(!_row_sources_buffer->get_agg_flag(row_source_idx))
+                            << "row_source_idx_start: " << row_buffer_size_start
+                            << ", row_source_idx: " << row_source_idx
+                            << ", current rows should be deleted: " << rows_should_be_deleted;
                     _row_sources_buffer->set_agg_flag(row_source_idx, true);
                 }
                 // skip same rows filtered in vertical_merge_iterator

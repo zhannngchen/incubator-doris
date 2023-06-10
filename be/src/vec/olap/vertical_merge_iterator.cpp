@@ -110,14 +110,14 @@ Status RowSourcesBuffer::has_remaining() {
 }
 
 void RowSourcesBuffer::set_agg_flag(uint64_t index, bool agg) {
-    DCHECK(index < _buffer->size());
+    CHECK(index < _buffer->size());
     RowSource ori(_buffer->get_data()[index]);
     ori.set_agg_flag(agg);
     _buffer->get_data()[index] = ori.data();
 }
 
 bool RowSourcesBuffer::get_agg_flag(uint64_t index) {
-    DCHECK(index < _buffer->size());
+    CHECK(index < _buffer->size());
     RowSource ori(_buffer->get_data()[index]);
     return ori.agg_flag();
 }
