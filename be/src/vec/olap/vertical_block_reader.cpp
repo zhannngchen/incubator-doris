@@ -445,6 +445,9 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                     reinterpret_cast<ColumnInt8*>(target_columns[delete_sign_idx].get())
                             ->get_data()
                             .data();
+            if (_row_sources_buffer->get_agg_flag(row_source_idx)) {
+                row_source_idx += _row_sources_buffer->continuous_agg_count(row_source_idx);
+            }
             for (int i = 0; i < block_rows; ++i) {
                 bool sign = (delete_data[i] == 0);
                 filter_data[i] = sign;
