@@ -424,6 +424,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         }
 
         auto block_rows = block->rows();
+        size_t rows_should_be_deleted = 0;
         if (_filter_delete && block_rows > 0) {
             int ori_delete_sign_idx = _reader_context.tablet_schema->field_index(DELETE_SIGN);
             if (ori_delete_sign_idx < 0) {
@@ -448,6 +449,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                 bool sign = (delete_data[i] == 0);
                 filter_data[i] = sign;
                 if (UNLIKELY(!sign)) {
+                    rows_should_be_deleted++;
                     _row_sources_buffer->set_agg_flag(row_source_idx, true);
                 }
                 // skip same rows filtered in vertical_merge_iterator
@@ -486,7 +488,7 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         if (filtered_rows_in_rs_buffer != filtered_rows_cur_batch) {
             LOG(INFO) << "ERROR: "
                       << "filtered rows in rs buffer: " << filtered_rows_in_rs_buffer
-                      << ", cur batch: " << filtered_rows_cur_batch;
+                      << ", cur batch: " << filtered_rows_cur_batch << ", should be: " << rows_should_be_deleted;
         }
 
         if (row_buffer_size_cur_batch !=
