@@ -674,7 +674,7 @@ Status VerticalMaskMergeIterator::unique_key_next_row(vectorized::IteratorRowRef
             ctx->set_cur_row_ref(ref);
             return Status::OK();
         }
-        filtered_rows++;
+        _filtered_rows++;
         st = _row_sources_buf->has_remaining();
     }
 

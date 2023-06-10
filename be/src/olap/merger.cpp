@@ -244,7 +244,17 @@ Status Merger::vertical_compact_one_group(
                 reader.next_block_with_aggregation(&block, &eof),
                 "failed to read next block when merging rowsets of tablet " + tablet->full_name());
         if (!is_key && eof) {
-            CHECK_EQ(output_rows + block.rows(), stats_output->output_rows);
+            CHECK_EQ(dst_rowset_writer->num_rows(), stats_output->output_rows);
+            CHECK_EQ(dst_rowset_writer->num_rows(), row_source_buf->buffered_size() - reader.merged_rows())
+                    << "dst rowset writer key group rows: " << dst_rowset_writer->num_rows()
+                    << "row source buf size: " << row_source_buf->buffered_size()
+                    << ", merged rows: " << reader.merged_rows();
+
+            CHECK_EQ(output_rows + block.rows(), dst_rowset_writer->num_rows())
+                    << "output_rows: " << output_rows << "block rows: " << block.rows()
+                    << "dst rowset writer key group rows: " << dst_rowset_writer->num_rows()
+                    << "row source buf size: " << row_source_buf->buffered_size()
+                    << ", merged rows: " << reader.merged_rows();
         }
         RETURN_NOT_OK_STATUS_WITH_WARN(
                 dst_rowset_writer->add_columns(&block, column_group, is_key, max_rows_per_segment),

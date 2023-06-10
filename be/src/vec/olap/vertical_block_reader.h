@@ -68,6 +68,7 @@ public:
         DCHECK(_vcollect_iter);
         return _vcollect_iter->merged_rows();
     }
+
     std::vector<RowLocation> current_block_row_locations() { return _block_row_locations; }
 
 private:

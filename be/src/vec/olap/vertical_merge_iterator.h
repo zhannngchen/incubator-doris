@@ -376,6 +376,10 @@ public:
 
     Status unique_key_next_row(IteratorRowRef* ref) override;
 
+    uint64_t merged_rows() const override {
+        return _filtered_rows;
+    }
+
 private:
     int _get_size(Block* block) { return block->rows(); }
 
@@ -390,7 +394,7 @@ private:
     const Schema* _schema = nullptr;
 
     int _block_row_max = 0;
-    size_t filtered_rows = 0;
+    size_t _filtered_rows = 0;
     RowSourcesBuffer* _row_sources_buf;
     StorageReadOptions _opts;
 };
