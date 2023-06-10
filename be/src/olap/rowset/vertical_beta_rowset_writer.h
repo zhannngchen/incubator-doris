@@ -44,6 +44,8 @@ public:
     // flush last segment's column
     Status flush_columns(bool is_key);
 
+    int64_t num_rows() const override { return _total_key_group_rows; }
+
     // flush when all column finished, flush column footer
     Status final_flush();
 
