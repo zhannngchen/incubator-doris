@@ -432,7 +432,9 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                 << "block rows: " << block_rows
                 << ", row buffer size cur batch: " << row_buffer_size_cur_batch
                 << ", merged rows in rs buffer: " << merged_rows_in_rs_buffer
-                << ", row buffer size in totoal: " << _row_sources_buffer->buffered_size();
+                << ", row buffer size in totoal: " << _row_sources_buffer->buffered_size()
+                << ", row_source_idx: " << row_source_idx
+                << ", row_buffer_size_start: " << row_buffer_size_start;
 
         if (_filter_delete && block_rows > 0) {
             int ori_delete_sign_idx = _reader_context.tablet_schema->field_index(DELETE_SIGN);
