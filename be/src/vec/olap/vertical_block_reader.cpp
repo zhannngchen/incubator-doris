@@ -399,10 +399,10 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         // _vcollect_iter->next_batch(block) will fill row_source_buffer but delete sign is ignored
         // we calc delete sign column if it's base compaction and update row_sourece_buffer's agg flag
         // after we get current block
-        auto row_source_idx = _row_sources_buffer->buffered_size();
-        auto row_buffer_size_start = row_source_idx;
-        auto merged_rows_start = _vcollect_iter->merged_rows();
-        auto filtered_rows_start = _stats.rows_del_filtered;
+        uint64_t row_source_idx = _row_sources_buffer->buffered_size();
+        uint64_t row_buffer_size_start = row_source_idx;
+        uint64_t merged_rows_start = _vcollect_iter->merged_rows();
+        uint64_t filtered_rows_start = _stats.rows_del_filtered;
 
         auto res = _vcollect_iter->next_batch(block);
         if (UNLIKELY(!res.ok() && !res.is<END_OF_FILE>())) {
@@ -417,21 +417,22 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         }
 
         size_t merged_rows_in_rs_buffer = 0;
-        for (auto i = row_buffer_size_start; i < _row_sources_buffer->buffered_size(); i++) {
+        for (uint64_t i = row_buffer_size_start; i < _row_sources_buffer->buffered_size(); i++) {
             if (_row_sources_buffer->get_agg_flag(i)) {
                 merged_rows_in_rs_buffer++;
             }
         }
 
         size_t rows_should_be_deleted = 0;
-        auto row_buffer_size_cur_batch =
+        uint64_t row_buffer_size_cur_batch =
                 _row_sources_buffer->buffered_size() - row_buffer_size_start;
 
-        auto block_rows = block->rows();
+        size_t block_rows = block->rows();
         CHECK_EQ(block_rows, row_buffer_size_cur_batch - merged_rows_in_rs_buffer)
                 << "block rows: " << block_rows
                 << ", row buffer size cur batch: " << row_buffer_size_cur_batch
-                << ", merged rows in rs buffer: " << merged_rows_in_rs_buffer;
+                << ", merged rows in rs buffer: " << merged_rows_in_rs_buffer
+                << ", row buffer size in totoal: " << _row_sources_buffer->buffered_size();
 
         if (_filter_delete && block_rows > 0) {
             int ori_delete_sign_idx = _reader_context.tablet_schema->field_index(DELETE_SIGN);
