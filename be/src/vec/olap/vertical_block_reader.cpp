@@ -423,8 +423,16 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
             }
         }
 
-        auto block_rows = block->rows();
         size_t rows_should_be_deleted = 0;
+        auto row_buffer_size_cur_batch =
+                _row_sources_buffer->buffered_size() - row_buffer_size_start;
+
+        auto block_rows = block->rows();
+        CHECK_EQ(block_rows, row_buffer_size_cur_batch - merged_rows_in_rs_buffer)
+                << "block rows: " << block_rows
+                << ", row buffer size cur batch: " << row_buffer_size_cur_batch
+                << ", merged rows in rs buffer: " << merged_rows_in_rs_buffer;
+
         if (_filter_delete && block_rows > 0) {
             int ori_delete_sign_idx = _reader_context.tablet_schema->field_index(DELETE_SIGN);
             if (ori_delete_sign_idx < 0) {
@@ -445,22 +453,27 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                     reinterpret_cast<ColumnInt8*>(target_columns[delete_sign_idx].get())
                             ->get_data()
                             .data();
-            if (_row_sources_buffer->get_agg_flag(row_source_idx)) {
-                row_source_idx += _row_sources_buffer->continuous_agg_count(row_source_idx);
-            }
-            for (int i = 0; i < block_rows; ++i) {
-                bool sign = (delete_data[i] == 0);
-                filter_data[i] = sign;
+
+            int cur_row = 0;
+            while (cur_row < block_rows) {
+                if (_row_sources_buffer->get_agg_flag(row_source_idx)) {
+                    row_source_idx++;
+                    continue;
+                }
+                bool sign = (delete_data[cur_row] == 0);
+                filter_data[cur_row] = sign;
                 if (UNLIKELY(!sign)) {
                     rows_should_be_deleted++;
-                    CHECK(!_row_sources_buffer->get_agg_flag(row_source_idx))
-                            << "row_source_idx_start: " << row_buffer_size_start
-                            << ", row_source_idx: " << row_source_idx
-                            << ", current rows should be deleted: " << rows_should_be_deleted;
                     _row_sources_buffer->set_agg_flag(row_source_idx, true);
                 }
-                // skip same rows filtered in vertical_merge_iterator
-                row_source_idx += _row_sources_buffer->continuous_agg_count(row_source_idx);
+                cur_row++;
+                row_source_idx++;
+            }
+            while (row_source_idx < _row_sources_buffer->buffered_size()) {
+                CHECK(_row_sources_buffer->get_agg_flag(row_source_idx))
+                        << ", row_source_idx: " << row_source_idx
+                        << ", buffer size: " << _row_sources_buffer->buffered_size();
+                row_source_idx++;
             }
 
             ColumnWithTypeAndName column_with_type_and_name {_delete_filter_column,
@@ -481,8 +494,6 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         filtered_rows_in_rs_buffer -= merged_rows_in_rs_buffer;
 
 
-        auto row_buffer_size_cur_batch =
-                _row_sources_buffer->buffered_size() - row_buffer_size_start;
         auto merged_rows_cur_batch = _vcollect_iter->merged_rows() - merged_rows_start;
         auto filtered_rows_cur_batch = _stats.rows_del_filtered - filtered_rows_start;
 
