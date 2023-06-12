@@ -296,12 +296,12 @@ Status Merger::vertical_compact_one_group(
     RETURN_IF_ERROR(dst_rowset_writer->flush_columns(is_key));
 
     if (is_key) {
-        CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
-                                                          stats_output->merged_rows +
-                                                          stats_output->filtered_rows);
         LOG(INFO) << "DEBUG: tablet_id : " << tablet->tablet_id() << " | "
                   << row_source_buf->buffered_size() << ", " << stats_output->merged_rows << ", "
                   << stats_output->filtered_rows;
+        CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
+                                                          stats_output->merged_rows +
+                                                          stats_output->filtered_rows);
         CHECK_EQ(stats_output->output_rows, dst_rowset_writer->num_rows());
     }
 
