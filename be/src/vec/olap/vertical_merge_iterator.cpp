@@ -639,6 +639,9 @@ Status VerticalMaskMergeIterator::next_row(vectorized::IteratorRowRef* ref) {
         // Except first row, we call advance first and than get cur row
         ctx->set_cur_row_ref(ref);
         ref->is_same = row_source.agg_flag();
+        if (ref->is_same) {
+            _filtered_rows++;
+        }
 
         ctx->set_is_first_row(false);
         _row_sources_buf->advance();
@@ -647,6 +650,9 @@ Status VerticalMaskMergeIterator::next_row(vectorized::IteratorRowRef* ref) {
     RETURN_IF_ERROR(ctx->advance());
     ctx->set_cur_row_ref(ref);
     ref->is_same = row_source.agg_flag();
+    if (ref->is_same) {
+        _filtered_rows++;
+    }
 
     _row_sources_buf->advance();
     return Status::OK();
