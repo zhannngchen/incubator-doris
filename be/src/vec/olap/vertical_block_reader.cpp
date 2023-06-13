@@ -401,7 +401,8 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
         // _vcollect_iter->next_batch(block) will fill row_source_buffer but delete sign is ignored
         // we calc delete sign column if it's base compaction and update row_sourece_buffer's agg flag
         // after we get current block
-        LOG(INFO) << "DEBUG, reader id: " << _id << ", buffer size: " << _row_sources_buffer->buffered_size();
+
+        // LOG(INFO) << "DEBUG, reader id: " << _id << ", buffer size: " << _row_sources_buffer->buffered_size();
         uint64_t row_source_idx = _row_sources_buffer->buffered_size();
         uint64_t row_buffer_size_start = row_source_idx;
         uint64_t merged_rows_start = _vcollect_iter->merged_rows();
@@ -417,6 +418,11 @@ Status VerticalBlockReader::_unique_key_next_block(Block* block, bool* eof) {
                 return res;
             }
             DCHECK_EQ(_block_row_locations.size(), block->rows());
+        }
+
+        if (_row_sources_buffer->buffered_size() < row_buffer_size_start) {
+            row_buffer_size_start = 0;
+            row_source_idx = 0;
         }
 
         size_t merged_rows_in_rs_buffer = 0;
