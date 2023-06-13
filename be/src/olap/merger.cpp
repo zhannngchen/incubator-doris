@@ -261,7 +261,7 @@ Status Merger::vertical_compact_one_group(
                 LOG(INFO) << "DEBUG: reader merge rows: " << reader.merged_rows()
                           << ", num agg flags: " << agg_rows;
             }
-            CHECK_EQ(dst_rowset_writer->num_rows(), row_source_buf->buffered_size() - reader.merged_rows())
+            CHECK_EQ(dst_rowset_writer->num_rows(), row_source_buf->total_size() - reader.merged_rows())
                     << "dst rowset writer key group rows: " << dst_rowset_writer->num_rows()
                     << "row source buf size: " << row_source_buf->buffered_size()
                     << ", merged rows: " << reader.merged_rows();
@@ -301,7 +301,7 @@ Status Merger::vertical_compact_one_group(
         LOG(INFO) << "DEBUG: tablet_id : " << tablet->tablet_id() << " | "
                   << row_source_buf->buffered_size() << ", " << stats_output->merged_rows << ", "
                   << stats_output->filtered_rows;
-        CHECK_EQ(row_source_buf->buffered_size(), stats_output->output_rows +
+        CHECK_EQ(row_source_buf->total_size(), stats_output->output_rows +
                                                           stats_output->merged_rows +
                                                           stats_output->filtered_rows);
         CHECK_EQ(stats_output->output_rows, dst_rowset_writer->num_rows());

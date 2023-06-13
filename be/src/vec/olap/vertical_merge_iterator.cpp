@@ -68,10 +68,15 @@ uint16_t RowSource::data() const {
 Status RowSourcesBuffer::append(const std::vector<RowSource>& row_sources) {
     if (_buffer->allocated_bytes() + row_sources.size() * sizeof(UInt16) >
         config::vertical_compaction_max_row_source_memory_mb * 1024 * 1024) {
-        // serialize current buffer
-        RETURN_IF_ERROR(_create_buffer_file());
-        RETURN_IF_ERROR(_serialize());
-        _reset_buffer();
+        if (_buffer->allocated_bytes() - _buffer->size() * sizeof(UInt16) <
+            row_sources.size() * sizeof(UInt16)) {
+            LOG(INFO) << "DEBUG: RowSourceBuffer is too large, serialize and reset buffer: "
+                      << _buffer->allocated_bytes() << ", total size: " << _total_size;
+            // serialize current buffer
+            RETURN_IF_ERROR(_create_buffer_file());
+            RETURN_IF_ERROR(_serialize());
+            _reset_buffer();
+        }
     }
     for (const auto& source : row_sources) {
         _buffer->insert_value(source.data());
@@ -173,8 +178,9 @@ Status RowSourcesBuffer::_create_buffer_file() {
     LOG(INFO) << "Vertical compaction row sources buffer path: " << file_path;
     _fd = mkstemp(file_path.data());
     if (_fd < 0) {
-        LOG(WARNING) << "failed to create tmp file, file_path=" << file_path;
-        return Status::InternalError("failed to create tmp file");
+        LOG(WARNING) << "failed to create tmp file, file_path=" << file_path
+                     << ", err: " << strerror(errno);
+        return Status::InternalError("failed to create tmp file ");
     }
     // file will be released after fd is close
     unlink(file_path.data());
