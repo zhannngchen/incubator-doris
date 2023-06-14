@@ -2735,7 +2735,9 @@ Status Tablet::lookup_row_key(const Slice& encoded_key, bool with_seq_col,
                 std::static_pointer_cast<BetaRowset>(rs.first), &segment_cache_handle, true));
         auto& segments = segment_cache_handle.get_segments();
         DCHECK_GT(segments.size(), rs.second);
+        LOG(INFO) << "DEBUG: " << "lookup row key on segment: " << segments[rs.second]->id();
         Status s = segments[rs.second]->lookup_row_key(encoded_key, with_seq_col, &loc);
+        LOG(INFO) << "DEBUG: lookup result: " << s;
         if (s.is<NOT_FOUND>()) {
             continue;
         }

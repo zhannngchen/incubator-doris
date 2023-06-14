@@ -367,6 +367,7 @@ Status SegmentWriter::append_block_with_partial_content(const vectorized::Block*
     {
         std::shared_lock rlock(_tablet->get_header_lock());
         for (size_t pos = row_pos; pos < num_rows; pos++) {
+            LOG(INFO) << "DEBUG: locate row: " << block->dump_one_line(row_pos, block->columns());
             std::string key = _full_encode_keys(key_columns, pos);
             RETURN_IF_ERROR(_primary_key_index_builder->add_item(key));
             _maybe_invalid_row_cache(key);
@@ -374,6 +375,10 @@ Status SegmentWriter::append_block_with_partial_content(const vectorized::Block*
             RowLocation loc;
             // save rowset shared ptr so this rowset wouldn't delete
             RowsetSharedPtr rowset;
+            LOG(INFO) << "DEBUG: "
+                      << "tablet id: " << _tablet->tablet_id()
+                      << ", max version: " << _mow_context->max_version
+                      << ", rowset ids: " << _mow_context->rowset_ids.size();
             auto st = _tablet->lookup_row_key(key, false, &_mow_context->rowset_ids, &loc,
                                               _mow_context->max_version, &rowset);
             if (st.is<NOT_FOUND>()) {
