@@ -72,7 +72,7 @@ private:
     int64_t _transaction_id;
     Version _version;
     TabletInfo _tablet_info;
-    Statistics _stats;
+    TabletPublishStatistics _stats;
 };
 
 class EnginePublishVersionTask : public EngineTask {
