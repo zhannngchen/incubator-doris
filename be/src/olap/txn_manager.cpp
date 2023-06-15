@@ -167,7 +167,7 @@ Status TxnManager::commit_txn(TPartitionId partition_id, const TabletSharedPtr& 
 
 Status TxnManager::publish_txn(TPartitionId partition_id, const TabletSharedPtr& tablet,
                                TTransactionId transaction_id, const Version& version,
-                               TabletPublishTxnTask::Statistics stats) {
+                               TabletPublishStatistics stats) {
     return publish_txn(tablet->data_dir()->get_meta(), partition_id, transaction_id,
                        tablet->tablet_id(), tablet->schema_hash(), tablet->tablet_uid(), version,
                        stats);
@@ -326,7 +326,7 @@ Status TxnManager::commit_txn(OlapMeta* meta, TPartitionId partition_id,
 Status TxnManager::publish_txn(OlapMeta* meta, TPartitionId partition_id,
                                TTransactionId transaction_id, TTabletId tablet_id,
                                SchemaHash schema_hash, TabletUid tablet_uid, const Version& version,
-                               TabletPublishTxnTask::Statistics stats) {
+                               TabletPublishStatistics stats) {
     auto tablet = StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id);
     if (tablet == nullptr) {
         return Status::OK();

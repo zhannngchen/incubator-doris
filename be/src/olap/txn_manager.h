@@ -48,7 +48,7 @@
 namespace doris {
 class DeltaWriter;
 class OlapMeta;
-class TabletPublishTxnTask {struct Statistics;};
+struct TabletPublishStatistics;
 
 struct TabletTxnInfo {
     PUniqueId load_id;
@@ -108,7 +108,7 @@ public:
 
     Status publish_txn(TPartitionId partition_id, const TabletSharedPtr& tablet,
                        TTransactionId transaction_id, const Version& version,
-                       TabletPublishTxnTask::Statistics stats);
+                       TabletPublishStatistics stats);
 
     // delete the txn from manager if it is not committed(not have a valid rowset)
     Status rollback_txn(TPartitionId partition_id, const TabletSharedPtr& tablet,
@@ -126,7 +126,7 @@ public:
     // not persist rowset meta because
     Status publish_txn(OlapMeta* meta, TPartitionId partition_id, TTransactionId transaction_id,
                        TTabletId tablet_id, SchemaHash schema_hash, TabletUid tablet_uid,
-                       const Version& version, TabletPublishTxnTask::Statistics stats);
+                       const Version& version, TabletPublishStatistics stats);
 
     // delete the txn from manager if it is not committed(not have a valid rowset)
     Status rollback_txn(TPartitionId partition_id, TTransactionId transaction_id,
