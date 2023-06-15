@@ -42,13 +42,13 @@
 #include "olap/rowset/segment_v2/segment_writer.h"
 #include "olap/tablet.h"
 #include "olap/tablet_meta.h"
-#include "olap/task/engine_publish_version_task.h"
 #include "util/time.h"
 #include "vec/core/block.h"
 
 namespace doris {
 class DeltaWriter;
 class OlapMeta;
+class TabletPublishTxnTask {struct Statistics;};
 
 struct TabletTxnInfo {
     PUniqueId load_id;
