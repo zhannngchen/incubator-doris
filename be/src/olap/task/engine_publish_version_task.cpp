@@ -142,11 +142,12 @@ Status EnginePublishVersionTask::finish() {
                 }
                 if (tablet_state == TabletState::TABLET_RUNNING &&
                     version.first != max_version.second + 1) {
-                    VLOG_NOTICE << "uniq key with merge-on-write version not continuous, current "
-                                   "max "
-                                   "version="
-                                << max_version.second << ", publish_version=" << version.first
-                                << " tablet_id=" << tablet->tablet_id();
+                    LOG_EVERY_SECOND(INFO)
+                            << "uniq key with merge-on-write version not continuous, "
+                               "current max version="
+                            << max_version.second << ", publish_version=" << version.first
+                            << ", tablet_id=" << tablet->tablet_id() << ", transaction_id"
+                            << _publish_version_req.transaction_id;
                     // If a tablet migrates out and back, the previously failed
                     // publish task may retry on the new tablet, so check
                     // whether the version exists. if not exist, then set
@@ -222,6 +223,7 @@ TabletPublishTxnTask::TabletPublishTxnTask(EnginePublishVersionTask* engine_task
           _tablet_info(tablet_info) {}
 
 void TabletPublishTxnTask::handle() {
+    OlapStopWatch watch;
     Defer defer {[&] {
         if (_engine_publish_version_task->finish_task() == 1) {
             _engine_publish_version_task->notify();
@@ -250,7 +252,8 @@ void TabletPublishTxnTask::handle() {
     LOG(INFO) << "publish version successfully on tablet"
               << ", table_id=" << _tablet->table_id() << ", tablet=" << _tablet->full_name()
               << ", transaction_id=" << _transaction_id << ", version=" << _version.first
-              << ", num_rows=" << _rowset->num_rows() << ", res=" << publish_status;
+              << ", num_rows=" << _rowset->num_rows() << ", res=" << publish_status
+              << ", cost(us): " << watch.get_elapse_time_us();
 }
 
 } // namespace doris

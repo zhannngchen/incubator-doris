@@ -370,6 +370,7 @@ Status TxnManager::publish_txn(OlapMeta* meta, TPartitionId partition_id,
 
         RETURN_IF_ERROR(tablet->update_delete_bitmap(rowset, tablet_txn_info.rowset_ids,
                                                      tablet_txn_info.delete_bitmap,
+                                                     transaction_id,
                                                      rowset_writer.get()));
         if (rowset->tablet_schema()->is_partial_update()) {
             // build rowset writer and merge transient rowset
