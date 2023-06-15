@@ -461,7 +461,8 @@ using RowsetIdUnorderedSet = std::unordered_set<RowsetId, HashOfRowsetId>;
 class DeleteBitmap;
 // merge on write context
 struct MowContext {
-    MowContext(int64_t version, int64_t txnid, const RowsetIdUnorderedSet& ids, std::shared_ptr<DeleteBitmap> db)
+    MowContext(int64_t version, int64_t txnid, const RowsetIdUnorderedSet& ids,
+               std::shared_ptr<DeleteBitmap> db)
             : max_version(version), txn_id(txnid), rowset_ids(ids), delete_bitmap(db) {}
     int64_t max_version;
     int64_t txn_id;

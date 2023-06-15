@@ -146,8 +146,8 @@ Status EnginePublishVersionTask::finish() {
                             << "uniq key with merge-on-write version not continuous, "
                                "current max version="
                             << max_version.second << ", publish_version=" << version.first
-                            << ", tablet_id=" << tablet->tablet_id() << ", transaction_id="
-                            << _publish_version_req.transaction_id;
+                            << ", tablet_id=" << tablet->tablet_id()
+                            << ", transaction_id=" << _publish_version_req.transaction_id;
                     // If a tablet migrates out and back, the previously failed
                     // publish task may retry on the new tablet, so check
                     // whether the version exists. if not exist, then set
@@ -257,7 +257,8 @@ void TabletPublishTxnTask::handle() {
               << ", table_id=" << _tablet->table_id() << ", tablet=" << _tablet->full_name()
               << ", transaction_id=" << _transaction_id << ", version=" << _version.first
               << ", num_rows=" << _rowset->num_rows() << ", res=" << publish_status
-              << ", cost: " << cost_us << "(us) " << (cost_us > 500*1000 ? _stats.to_string() : "");
+              << ", cost: " << cost_us << "(us) "
+              << (cost_us > 500 * 1000 ? _stats.to_string() : "");
 }
 
 } // namespace doris

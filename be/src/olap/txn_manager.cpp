@@ -375,8 +375,7 @@ Status TxnManager::publish_txn(OlapMeta* meta, TPartitionId partition_id,
 
         int64_t t2 = MonotonicMicros();
         RETURN_IF_ERROR(tablet->update_delete_bitmap(rowset, tablet_txn_info.rowset_ids,
-                                                     tablet_txn_info.delete_bitmap,
-                                                     transaction_id,
+                                                     tablet_txn_info.delete_bitmap, transaction_id,
                                                      rowset_writer.get()));
         stats->calc_delete_bitmap_time_us = MonotonicMicros() - t2;
         if (rowset->tablet_schema()->is_partial_update()) {
