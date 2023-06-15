@@ -146,7 +146,7 @@ Status EnginePublishVersionTask::finish() {
                             << "uniq key with merge-on-write version not continuous, "
                                "current max version="
                             << max_version.second << ", publish_version=" << version.first
-                            << ", tablet_id=" << tablet->tablet_id() << ", transaction_id"
+                            << ", tablet_id=" << tablet->tablet_id() << ", transaction_id="
                             << _publish_version_req.transaction_id;
                     // If a tablet migrates out and back, the previously failed
                     // publish task may retry on the new tablet, so check
