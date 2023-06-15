@@ -242,7 +242,9 @@ void TabletPublishTxnTask::handle() {
     }
 
     // add visible rowset to tablet
+    int64_t t1 = MonotonicMicros();
     publish_status = _tablet->add_inc_rowset(_rowset);
+    _stats.add_inc_rowset_us = MonotonicMicros() - t1;
     if (publish_status != Status::OK() && !publish_status.is<PUSH_VERSION_ALREADY_EXIST>()) {
         LOG(WARNING) << "fail to add visible rowset to tablet. rowset_id=" << _rowset->rowset_id()
                      << ", tablet_id=" << _tablet_info.tablet_id << ", txn_id=" << _transaction_id
