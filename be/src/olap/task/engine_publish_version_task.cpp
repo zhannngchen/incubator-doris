@@ -221,11 +221,11 @@ TabletPublishTxnTask::TabletPublishTxnTask(EnginePublishVersionTask* engine_task
           _transaction_id(transaction_id),
           _version(version),
           _tablet_info(tablet_info) {
-    _stats.submit_time_ms = MonotonicMicros();
+    _stats.submit_time_us = MonotonicMicros();
 }
 
 void TabletPublishTxnTask::handle() {
-    _stats.schedule_time_ms = MonotonicMicros() - _stats.submit_time_ms;
+    _stats.schedule_time_us = MonotonicMicros() - _stats.submit_time_us;
     Defer defer {[&] {
         if (_engine_publish_version_task->finish_task() == 1) {
             _engine_publish_version_task->notify();
@@ -251,12 +251,13 @@ void TabletPublishTxnTask::handle() {
         return;
     }
     _engine_publish_version_task->add_succ_tablet_id(_tablet_info.tablet_id);
-    int64_t cost = MonotonicMicros() - _stats.submit_time_ms;
+    int64_t cost_us = MonotonicMicros() - _stats.submit_time_us;
+    // print stats if publish cost > 500ms
     LOG(INFO) << "publish version successfully on tablet"
               << ", table_id=" << _tablet->table_id() << ", tablet=" << _tablet->full_name()
               << ", transaction_id=" << _transaction_id << ", version=" << _version.first
               << ", num_rows=" << _rowset->num_rows() << ", res=" << publish_status
-              << ", cost: " << cost << "(ms) " << (cost > 500 ? _stats.to_string() : "");
+              << ", cost: " << cost_us << "(us) " << (cost_us > 500*1000 ? _stats.to_string() : "");
 }
 
 } // namespace doris

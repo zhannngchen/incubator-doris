@@ -39,18 +39,17 @@ class EnginePublishVersionTask;
 class TPublishVersionRequest;
 
 struct TabletPublishStatistics {
-    int64_t submit_time_ms = 0;
-    int64_t schedule_time_ms = 0;
-    int64_t lock_wait_time_ms = 0;
-    int64_t save_meta_time_ms = 0;
-    int64_t calc_delete_bitmap_time_ms = 0;
+    int64_t submit_time_us = 0;
+    int64_t schedule_time_us = 0;
+    int64_t lock_wait_time_us = 0;
+    int64_t save_meta_time_us = 0;
+    int64_t calc_delete_bitmap_time_us = 0;
 
     std::string to_string() {
         return fmt::format(
-                "[Publish Statistics: schedule time(ms): {}, lock wait time(ms): {}, save meta "
-                "time(ms): {}, calc delete bitmap time(ms): {}]",
-                schedule_time_ms, lock_wait_time_ms, save_meta_time_ms,
-                calc_delete_bitmap_time_ms);
+                "[Publish Statistics: schedule time(us): {}, lock wait time(us): {}, save meta "
+                "time(us): {}, calc delete bitmap time(us): {}]",
+                schedule_time_us, lock_wait_time_us, save_meta_time_us, calc_delete_bitmap_time_us);
     }
 };
 
