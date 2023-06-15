@@ -437,7 +437,7 @@ Status TxnManager::publish_txn(OlapMeta* meta, TPartitionId partition_id,
         it->second.erase(tablet_info);
         VLOG_NOTICE << "publish txn successfully."
                     << " partition_id: " << key.first << ", txn_id: " << key.second
-                    << ", tablet: " << tablet_info.to_string()
+                    << ", tablet_id: " << tablet_info.tablet_id
                     << ", rowsetid: " << rowset->rowset_id() << ", version: " << version.first
                     << "," << version.second;
         if (it->second.empty()) {
