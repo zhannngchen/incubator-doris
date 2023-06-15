@@ -232,7 +232,7 @@ void TabletPublishTxnTask::handle() {
         }
     }};
     auto publish_status = StorageEngine::instance()->txn_manager()->publish_txn(
-            _partition_id, _tablet, _transaction_id, _version, _stats);
+            _partition_id, _tablet, _transaction_id, _version, &_stats);
     if (publish_status != Status::OK()) {
         LOG(WARNING) << "failed to publish version. rowset_id=" << _rowset->rowset_id()
                      << ", tablet_id=" << _tablet_info.tablet_id << ", txn_id=" << _transaction_id
