@@ -31,6 +31,7 @@
 #include "olap/rowset/rowset.h"
 #include "olap/tablet.h"
 #include "olap/task/engine_task.h"
+#include "util/time.h"
 
 namespace doris {
 
@@ -39,10 +40,26 @@ class TPublishVersionRequest;
 
 class TabletPublishTxnTask {
 public:
+    struct Statistics {
+        int64_t submit_time_ms = 0;
+        int64_t schedule_time_ms = 0;
+        int64_t lock_wait_time_ms = 0;
+        int64_t save_meta_time_ms = 0;
+        int64_t calc_delete_bitmap_time_ms = 0;
+
+        std::string to_string() {
+            return fmt::format(
+                    "[Publish Statistics: schedule time(ms): {}, lock wait time(ms): {}, save meta "
+                    "time(ms): {}, calc delete bitmap time(ms): {}]",
+                    schedule_time_ms, lock_wait_time_ms, save_meta_time_ms,
+                    calc_delete_bitmap_time_ms);
+        }
+    };
+
     TabletPublishTxnTask(EnginePublishVersionTask* engine_task, TabletSharedPtr tablet,
                          RowsetSharedPtr rowset, int64_t partition_id, int64_t transaction_id,
                          Version version, const TabletInfo& tablet_info);
-    ~TabletPublishTxnTask() {}
+    ~TabletPublishTxnTask() = default;
 
     void handle();
 
@@ -55,10 +72,12 @@ private:
     int64_t _transaction_id;
     Version _version;
     TabletInfo _tablet_info;
+    Statistics _stats;
 };
 
 class EnginePublishVersionTask : public EngineTask {
 public:
+
     EnginePublishVersionTask(const TPublishVersionRequest& publish_version_req,
                              vector<TTabletId>* error_tablet_ids,
                              std::vector<TTabletId>* succ_tablet_ids = nullptr);

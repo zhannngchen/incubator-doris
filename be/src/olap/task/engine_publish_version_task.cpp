@@ -220,17 +220,19 @@ TabletPublishTxnTask::TabletPublishTxnTask(EnginePublishVersionTask* engine_task
           _partition_id(partition_id),
           _transaction_id(transaction_id),
           _version(version),
-          _tablet_info(tablet_info) {}
+          _tablet_info(tablet_info) {
+    _stats.submit_time_ms = MonotonicMicros();
+}
 
 void TabletPublishTxnTask::handle() {
-    OlapStopWatch watch;
+    _stats.schedule_time_ms = MonotonicMicros() - _stats.submit_time_ms;
     Defer defer {[&] {
         if (_engine_publish_version_task->finish_task() == 1) {
             _engine_publish_version_task->notify();
         }
     }};
     auto publish_status = StorageEngine::instance()->txn_manager()->publish_txn(
-            _partition_id, _tablet, _transaction_id, _version);
+            _partition_id, _tablet, _transaction_id, _version, _stats);
     if (publish_status != Status::OK()) {
         LOG(WARNING) << "failed to publish version. rowset_id=" << _rowset->rowset_id()
                      << ", tablet_id=" << _tablet_info.tablet_id << ", txn_id=" << _transaction_id
@@ -249,11 +251,12 @@ void TabletPublishTxnTask::handle() {
         return;
     }
     _engine_publish_version_task->add_succ_tablet_id(_tablet_info.tablet_id);
+    int64_t cost = MonotonicMicros() - _stats.submit_time_ms;
     LOG(INFO) << "publish version successfully on tablet"
               << ", table_id=" << _tablet->table_id() << ", tablet=" << _tablet->full_name()
               << ", transaction_id=" << _transaction_id << ", version=" << _version.first
               << ", num_rows=" << _rowset->num_rows() << ", res=" << publish_status
-              << ", cost(us): " << watch.get_elapse_time_us();
+              << ", cost: " << cost << "(ms) " << (cost > 500 ? _stats.to_string() : "");
 }
 
 } // namespace doris
