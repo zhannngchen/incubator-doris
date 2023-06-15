@@ -402,8 +402,7 @@ Status DeltaWriter::close() {
     }
 }
 
-Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
-                               const bool write_single_replica) {
+Status DeltaWriter::wait_close_flush() {
     SCOPED_TIMER(_close_wait_timer);
     std::lock_guard<std::mutex> l(_lock);
     DCHECK(_is_init)
@@ -441,6 +440,8 @@ Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
     }
 
     if (_tablet->enable_unique_key_merge_on_write()) {
+        _calc_del_bitmap_token = StorageEngine::instance()->calc_delete_bitmap_thread_pool()->new_token(
+                ThreadPool::ExecutionMode::CONCURRENT);
         auto beta_rowset = reinterpret_cast<BetaRowset*>(_cur_rowset.get());
         std::vector<segment_v2::SegmentSharedPtr> segments;
         RETURN_IF_ERROR(beta_rowset->load_segments(&segments));
@@ -454,9 +455,22 @@ Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
             RETURN_IF_ERROR(_tablet->calc_delete_bitmap_between_segments(_cur_rowset, segments,
                                                                          _delete_bitmap));
         }
+        _calc_del_bitmap_start_time = MonotonicMicros();
         RETURN_IF_ERROR(_tablet->commit_phase_update_delete_bitmap(
                 _cur_rowset, _rowset_ids, _delete_bitmap, _tablet->max_version().second, segments,
-                _req.txn_id, _rowset_writer.get()));
+                _req.txn_id, _calc_del_bitmap_token.get(), _rowset_writer.get()));
+    }
+    return Status::OK();
+}
+
+Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
+                               const bool write_single_replica) {
+    std::lock_guard<std::mutex> l(_lock);
+    if (_calc_del_bitmap_token != nullptr) {
+        _calc_del_bitmap_token->wait();
+        LOG(INFO) << "[Before Commit] construct delete bitmap complete, tablet: " << tablet_id()
+                  << ", transaction_id: " << _req.txn_id
+                  << ", cost: " << MonotonicMicros() - _calc_del_bitmap_start_time << "(us)";
     }
     Status res = _storage_engine->txn_manager()->commit_txn(_req.partition_id, _tablet, _req.txn_id,
                                                             _req.load_id, _cur_rowset, false);

@@ -38,6 +38,7 @@
 #include "olap/rowset/segment_v2/segment.h"
 #include "olap/schema.h"
 #include "olap/schema_change.h"
+#include "olap/storage_engine.h"
 #include "olap/tablet_schema.h"
 #include "runtime/descriptors.h"
 #include "runtime/exec_env.h"
@@ -461,9 +462,13 @@ Status MemTable::_generate_delete_bitmap(int32_t segment_id) {
     }
 
     OlapStopWatch watch;
+    std::unique_ptr<ThreadPoolToken> token =
+            StorageEngine::instance()->calc_delete_bitmap_thread_pool()->new_token(
+                    ThreadPool::ExecutionMode::CONCURRENT);
     RETURN_IF_ERROR(_tablet->calc_delete_bitmap(rowset, segments, &_mow_context->rowset_ids,
                                                 _mow_context->delete_bitmap,
-                                                _mow_context->max_version));
+                                                _mow_context->max_version, token.get()));
+    token->wait();
     size_t total_rows = std::accumulate(
             segments.begin(), segments.end(), 0,
             [](size_t sum, const segment_v2::SegmentSharedPtr& s) { return sum += s->num_rows(); });

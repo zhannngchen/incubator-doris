@@ -134,6 +134,9 @@ private:
     // open all writer
     Status _open_all_writers(const PTabletWriterOpenRequest& request);
 
+    void _wait_flush(DeltaWriter* writer,
+                     google::protobuf::RepeatedPtrField<PTabletInfo>* tablet_vec,
+                     google::protobuf::RepeatedPtrField<PTabletError>* tablet_error);
     // deal with DeltaWriter close_wait(), add tablet to list for return.
     void _close_wait(DeltaWriter* writer,
                      google::protobuf::RepeatedPtrField<PTabletInfo>* tablet_vec,

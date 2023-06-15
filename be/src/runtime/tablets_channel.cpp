@@ -193,7 +193,12 @@ Status TabletsChannel::close(
 
         _write_single_replica = write_single_replica;
 
-        // 2. wait delta writers and build the tablet vector
+        // 2. wait delta writers flush
+        for (auto writer : need_wait_writers) {
+            _wait_flush(writer, tablet_vec, tablet_errors);
+        }
+
+        // 3. wait delta writers and build the tablet vector
         for (auto writer : need_wait_writers) {
             PSlaveTabletNodes slave_nodes;
             if (write_single_replica) {
@@ -230,6 +235,24 @@ Status TabletsChannel::close(
         }
     }
     return Status::OK();
+}
+
+void TabletsChannel::_wait_flush(DeltaWriter* writer,
+                                 google::protobuf::RepeatedPtrField<PTabletInfo>* tablet_vec,
+                                 google::protobuf::RepeatedPtrField<PTabletError>* tablet_errors) {
+    Status st = writer->wait_close_flush();
+    if (st.ok()) {
+        PTabletInfo* tablet_info = tablet_vec->Add();
+        tablet_info->set_tablet_id(writer->tablet_id());
+        tablet_info->set_schema_hash(writer->schema_hash());
+        tablet_info->set_received_rows(writer->total_received_rows());
+    } else {
+        PTabletError* tablet_error = tablet_errors->Add();
+        tablet_error->set_tablet_id(writer->tablet_id());
+        tablet_error->set_msg(st.to_string());
+        VLOG_PROGRESS << "close wait failed tablet " << writer->tablet_id() << " transaction_id "
+                      << _txn_id << "err msg " << st;
+    }
 }
 
 void TabletsChannel::_close_wait(DeltaWriter* writer,

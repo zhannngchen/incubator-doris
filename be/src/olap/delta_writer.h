@@ -91,6 +91,8 @@ public:
 
     // flush the last memtable to flush queue, must call it before close_wait()
     Status close();
+
+    Status wait_close_flush();
     // wait for all memtables to be flushed.
     // mem_consumption() should be 0 after this function returns.
     Status close_wait(const PSlaveTabletNodes& slave_tablet_nodes, const bool write_single_replica);
@@ -174,6 +176,8 @@ private:
     StorageEngine* _storage_engine;
     UniqueId _load_id;
     std::unique_ptr<FlushToken> _flush_token;
+    std::unique_ptr<ThreadPoolToken> _calc_del_bitmap_token;
+    int64_t _calc_del_bitmap_start_time;
     std::vector<std::shared_ptr<MemTracker>> _mem_table_insert_trackers;
     std::vector<std::shared_ptr<MemTracker>> _mem_table_flush_trackers;
     SpinLock _mem_table_tracker_lock;
