@@ -401,8 +401,9 @@ public:
     // NOTE: the method only works in unique key model with primary key index, you will got a
     //       not supported error in other data model.
     Status lookup_row_key(
-            const Slice& encoded_key, bool with_seq_col, const RowsetIdUnorderedSet* rowset_ids,
-            RowLocation* row_location, uint32_t version,
+            const Slice& encoded_key, bool with_seq_col,
+            const std::vector<RowsetSharedPtr>& specified_rowsets, RowLocation* row_location,
+            uint32_t version,
             std::unordered_map<RowsetId, SegmentCacheHandle, HashOfRowsetId>& segment_caches,
             RowsetSharedPtr* rowset = nullptr);
 
@@ -429,14 +430,19 @@ public:
     // and build newly generated rowset's delete_bitmap
     Status calc_delete_bitmap(RowsetSharedPtr rowset,
                               const std::vector<segment_v2::SegmentSharedPtr>& segments,
-                              const RowsetIdUnorderedSet* specified_rowset_ids,
+                              const std::vector<RowsetSharedPtr>& specified_rowsets,
                               DeleteBitmapPtr delete_bitmap, int64_t version,
                               RowsetWriter* rowset_writer = nullptr);
+
+    std::vector<RowsetSharedPtr> get_rowset_by_ids(
+            const RowsetIdUnorderedSet* specified_rowset_ids);
+
     Status calc_segment_delete_bitmap(RowsetSharedPtr rowset,
                                       const segment_v2::SegmentSharedPtr& seg,
-                                      const RowsetIdUnorderedSet* specified_rowset_ids,
+                                      const std::vector<RowsetSharedPtr>& specified_rowsets,
                                       DeleteBitmapPtr delete_bitmap, int64_t end_version,
                                       RowsetWriter* rowset_writer);
+
     Status calc_delete_bitmap_between_segments(
             RowsetSharedPtr rowset, const std::vector<segment_v2::SegmentSharedPtr>& segments,
             DeleteBitmapPtr delete_bitmap);
@@ -457,7 +463,7 @@ public:
 
     Status commit_phase_update_delete_bitmap(
             const RowsetSharedPtr& rowset, const RowsetIdUnorderedSet& pre_rowset_ids,
-            DeleteBitmapPtr delete_bitmap, const int64_t& cur_version,
+            DeleteBitmapPtr delete_bitmap,
             const std::vector<segment_v2::SegmentSharedPtr>& segments, int64_t txn_id,
             RowsetWriter* rowset_writer = nullptr);
 
