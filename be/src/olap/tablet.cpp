@@ -3196,7 +3196,7 @@ Status Tablet::update_delete_bitmap_without_lock(const RowsetSharedPtr& rowset) 
 }
 
 Status Tablet::commit_phase_update_delete_bitmap(
-        const RowsetSharedPtr& rowset, const RowsetIdUnorderedSet& pre_rowset_ids,
+        const RowsetSharedPtr& rowset, RowsetIdUnorderedSet& pre_rowset_ids,
         DeleteBitmapPtr delete_bitmap, const std::vector<segment_v2::SegmentSharedPtr>& segments, int64_t txn_id,
         RowsetWriter* rowset_writer) {
     RowsetIdUnorderedSet cur_rowset_ids;
@@ -3233,6 +3233,7 @@ Status Tablet::commit_phase_update_delete_bitmap(
               << ", rowset_ids to del: " << rowset_ids_to_del.size()
               << ", cur max_version: " << cur_version << ", transaction_id: " << txn_id
               << ", cost: " << watch.get_elapse_time_us() << "(us), total rows: " << total_rows;
+    pre_rowset_ids = cur_rowset_ids;
     return Status::OK();
 }
 
