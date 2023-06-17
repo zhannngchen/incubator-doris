@@ -3241,7 +3241,7 @@ Status Tablet::commit_phase_update_delete_bitmap(
               << ", rowset_ids to add: " << rowset_ids_to_add.size()
               << ", rowset_ids to del: " << rowset_ids_to_del.size()
               << ", cur max_version: " << cur_version << ", transaction_id: " << txn_id
-              << ", cost: " << watch.get_elapse_time_us() << "(us), total rows: " << total_rows;
+              << ", cost: " << watch.get_elapse_time_us() / 1000 << "(us), total rows: " << total_rows;
     pre_rowset_ids = cur_rowset_ids;
     return Status::OK();
 }
