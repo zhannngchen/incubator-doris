@@ -3215,7 +3215,7 @@ Status Tablet::commit_phase_update_delete_bitmap(
             LOG(INFO) << "rowset_ids_to_add: " << rowset_ids_to_add.size()
                       << ", rowset_ids_to_del: " << rowset_ids_to_del.size();
         }
-        specified_rowsets = get_rowset_by_ids(&cur_rowset_ids);
+        specified_rowsets = get_rowset_by_ids(&rowset_ids_to_add);
     }
 
     for (const auto& to_del : rowset_ids_to_del) {
