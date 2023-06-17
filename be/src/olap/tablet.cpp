@@ -144,6 +144,10 @@ static bvar::LatencyRecorder g_tablet_commit_phase_update_delete_bitmap_latency(
         "commit_phase_update_delete_bitmap");
 static bvar::LatencyRecorder g_tablet_update_delete_bitmap_latency("doris_pk",
         "update_delete_bitmap");
+bvar::Adder<uint64_t> g_tablet_pk_not_found("doris_pk", "lookup_not_found");
+bvar::PerSecond<bvar::Adder<uint64_t>> g_tablet_pk_not_found_per_second("doris_pk",
+                                                                     "lookup_not_found_per_second",
+                                                                     &g_tablet_pk_not_found, 60);
 
 const std::chrono::seconds TRACE_TABLET_LOCK_THRESHOLD = 10s;
 
@@ -2755,6 +2759,7 @@ Status Tablet::lookup_row_key(
             picked_segments.emplace_back(i);
         }
         if (picked_segments.empty()) {
+            g_tablet_pk_not_found << 1;
             continue;
         }
 
@@ -2795,6 +2800,7 @@ Status Tablet::lookup_row_key(
             return s;
         }
     }
+    g_tablet_pk_not_found << 1;
     return Status::NotFound("can't find key in all rowsets");
 }
 
