@@ -305,7 +305,7 @@ DEFINE_Bool(disable_storage_page_cache, "false");
 DEFINE_Bool(disable_storage_row_cache, "true");
 
 // data page size for primary key index
-DEFINE_Int32(primary_key_data_page_size, "65536");
+DEFINE_Int32(primary_key_data_page_size, "32768");
 
 DEFINE_Bool(enable_low_cardinality_optimize, "true");
 DEFINE_Bool(enable_low_cardinality_cache_code, "true");
