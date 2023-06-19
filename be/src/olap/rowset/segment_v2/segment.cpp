@@ -358,7 +358,7 @@ Status Segment::new_inverted_index_iterator(const TabletColumn& tablet_column,
 }
 
 Status Segment::lookup_row_key(const Slice& key, bool with_seq_col, RowLocation* row_location) {
-    SCOPED_BVAR_LATENCY(g_segment_lookup_rowkey_latency);
+//    SCOPED_BVAR_LATENCY(g_segment_lookup_rowkey_latency);
     RETURN_IF_ERROR(load_pk_index_and_bf());
     bool has_seq_col = _tablet_schema->has_sequence_col();
     size_t seq_col_length = 0;
