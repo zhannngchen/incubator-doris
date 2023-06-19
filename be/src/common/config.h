@@ -344,6 +344,9 @@ DECLARE_Bool(disable_storage_page_cache);
 // whether to disable row cache feature in storage
 DECLARE_Bool(disable_storage_row_cache);
 
+// data page size for primary key index
+DECLARE_Int32(primary_key_data_page_size);
+
 DECLARE_Bool(enable_low_cardinality_optimize);
 DECLARE_Bool(enable_low_cardinality_cache_code);
 
