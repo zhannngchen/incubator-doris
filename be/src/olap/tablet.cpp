@@ -2824,6 +2824,7 @@ Status Tablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
     Version dummy_version(end_version + 1, end_version + 1);
     auto rowset_schema = rowset->tablet_schema();
     bool is_partial_update = rowset_schema->is_partial_update();
+    bool did_partial_update = false;
     // use for partial update
     PartialUpdateReadPlan read_plan_ori;
     PartialUpdateReadPlan read_plan_update;
@@ -2896,6 +2897,7 @@ Status Tablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
                 delete_bitmap->add({rowset_id, seg->id(), 0}, row_id);
                 continue;
             } else if (is_partial_update && rowset_writer != nullptr) {
+                did_partial_update = true;
                 // In publish version, record rows to be deleted for concurrent update
                 // For example, if version 5 and 6 update a row, but version 6 only see
                 // version 4 when write, and when publish version, version 5's value will
@@ -2926,6 +2928,7 @@ Status Tablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
     }
     DCHECK_EQ(total, row_id) << "segment total rows: " << total << " row_id:" << row_id;
 
+    LOG(INFO) << "proceed partial update: " << did_partial_update;
     if (pos > 0) {
         RETURN_IF_ERROR(generate_new_block_for_partial_update(
                 rowset_schema, read_plan_ori, read_plan_update, rsid_to_rowset, &block));
@@ -3045,6 +3048,10 @@ Status Tablet::generate_new_block_for_partial_update(
                     read_index_update[idx]);
         }
     }
+    std::ostringstream  oss;
+    std::copy(update_cids.begin(), update_cids.end(), std::ostream_iterator<int>(oss, ","));
+    LOG(INFO) << "partial update, generate new block, columns: " << oss.str()
+              << ", rows: " << output_block->rows();
     VLOG_DEBUG << "full block when publish: " << output_block->dump_data();
     return Status::OK();
 }
