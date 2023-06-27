@@ -2950,16 +2950,9 @@ Status Tablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
     }
     DCHECK_EQ(total, row_id) << "segment total rows: " << total << " row_id:" << row_id;
 
-    std::ostringstream  oss;
-    if (is_partial_update) {
-        std::copy(rowset_schema->get_update_cids().begin(), rowset_schema->get_update_cids().end(),
-                  std::ostream_iterator<int>(oss, ","));
-    }
-
     LOG(INFO) << "proceed partial update: " << did_partial_update
               << ", is_partial_update: " << is_partial_update
-              << ", rowset_writer==nullptr: " << (rowset_writer == nullptr)
-              << ", cids: " << oss.str();
+              << ", rowset_writer==nullptr: " << (rowset_writer == nullptr);
     if (pos > 0) {
         RETURN_IF_ERROR(generate_new_block_for_partial_update(
                 rowset_schema, read_plan_ori, read_plan_update, rsid_to_rowset, &block));
