@@ -592,10 +592,14 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req,
             request.__set_enable_profile(false);
         }
     }
+    LOG(INFO) << "parse partial columns header";
     if (!http_req->header(HTTP_PARTIAL_COLUMNS).empty()) {
         if (iequal(http_req->header(HTTP_PARTIAL_COLUMNS), "true")) {
+            LOG(INFO) << "got partial columns header";
             request.__set_partial_update(true);
         } else {
+            LOG(INFO) << "don't got partial columns header, we got: "
+                      << http_req->header(HTTP_PARTIAL_COLUMNS);
             request.__set_partial_update(false);
         }
     }

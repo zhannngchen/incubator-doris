@@ -1058,6 +1058,7 @@ vectorized::Block TabletSchema::create_update_columns_block() {
 void TabletSchema::set_partial_update_info(bool is_partial_update,
                                            const std::set<string>& partial_update_input_columns) {
     _is_partial_update = is_partial_update;
+    LOG(INFO) << "set partial update info for tablet schema: " << is_partial_update;
     _partial_update_input_columns = partial_update_input_columns;
     _missing_cids.clear();
     _update_cids.clear();
