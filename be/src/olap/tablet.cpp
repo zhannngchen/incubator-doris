@@ -109,6 +109,7 @@
 #include "service/point_query_executor.h"
 #include "util/bvar_helper.h"
 #include "util/defer_op.h"
+#include "util/debug_util.h"
 #include "util/doris_metrics.h"
 #include "util/pretty_printer.h"
 #include "util/scoped_cleanup.h"
@@ -2719,6 +2720,14 @@ Status Tablet::lookup_row_key(
         DCHECK_EQ(segments_key_bounds.size(), num_segments);
         std::vector<uint32_t> picked_segments;
         for (int i = num_segments - 1; i >= 0; i--) {
+            LOG(INFO) << "DEBUG: key_without_seq: "
+                      << hexdump(key_without_seq.get_data(), key_without_seq.get_size())
+                      << ", keybounds max: "
+                      << hexdump(segments_key_bounds[i].max_key().c_str(),
+                                 segments_key_bounds[i].max_key().length())
+                      << ", keybounds min: "
+                      << hexdump(segments_key_bounds[i].min_key().c_str(),
+                                 segments_key_bounds[i].min_key().length());
             if (key_without_seq.compare(segments_key_bounds[i].max_key()) > 0 ||
                 key_without_seq.compare(segments_key_bounds[i].min_key()) < 0) {
                 continue;
