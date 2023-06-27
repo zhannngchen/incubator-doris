@@ -2739,12 +2739,16 @@ Status Tablet::lookup_row_key(
         auto& segments = iter->second.get_segments();
         DCHECK_EQ(segments.size(), num_segments);
 
+        LOG(INFO) << "DEBUG: lookup_row_key, rowset version: " << rs->version();
+
         for (auto id : picked_segments) {
             Status s = segments[id]->lookup_row_key(encoded_key, with_seq_col, &loc);
             if (s.is<NOT_FOUND>()) {
+                LOG(INFO) << "DEBUG: lookup_row_key, segment: " << id << ", not found";
                 continue;
             }
             if (!s.ok()) {
+                LOG(INFO) << "DEBUG: lookup_row_key, segment: " << id << ", status: " << s;
                 return s;
             }
             if (_tablet_meta->delete_bitmap().contains_agg_without_cache(
@@ -2752,11 +2756,16 @@ Status Tablet::lookup_row_key(
                 // if has sequence col, we continue to compare the sequence_id of
                 // all rowsets, util we find an existing key.
                 if (_schema->has_sequence_col()) {
+                    LOG(INFO) << "DEBUG: lookup_row_key, segment: " << id
+                              << ", found, has seq-col, continue";
                     continue;
                 }
                 // The key is deleted, we don't need to search for it any more.
+                LOG(INFO) << "DEBUG: lookup_row_key, segment: " << id
+                          << ", found and already deleted";
                 break;
             }
+            LOG(INFO) << "DEBUG: lookup_row_key, segment: " << id << ", found, location: " << loc.row_id;
             *row_location = loc;
             if (rowset) {
                 // return it's rowset
