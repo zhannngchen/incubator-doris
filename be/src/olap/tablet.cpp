@@ -1904,7 +1904,7 @@ Status Tablet::create_rowset_writer(RowsetWriterContext& context,
 
 // create a rowset writer with rowset_id and seg_id
 // after writer, merge this transient rowset with original rowset
-Status Tablet::create_transient_rowset_writer(RowsetSharedPtr rowset_ptr, ,
+Status Tablet::create_transient_rowset_writer(RowsetSharedPtr rowset_ptr,
                                               std::unique_ptr<RowsetWriter>* rowset_writer) {
     RowsetWriterContext context;
     context.rowset_state = PREPARED;
@@ -1914,7 +1914,9 @@ Status Tablet::create_transient_rowset_writer(RowsetSharedPtr rowset_ptr, ,
     context.tablet_schema->set_partial_update_info(false, std::set<std::string>());
     context.newest_write_timestamp = UnixSeconds();
     context.tablet_id = table_id();
-    context.tablet.reset(this);
+    // ATTN: context.tablet is a shared_ptr, can't simply set it's value to `this`. We should
+    // get the shared_ptr from tablet_manager.
+    context.tablet = StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id());
     context.write_type = DataWriteType::TYPE_DIRECT;
     RETURN_IF_ERROR(
             create_transient_rowset_writer(context, rowset_ptr->rowset_id(), rowset_writer));
