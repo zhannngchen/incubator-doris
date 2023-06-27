@@ -2726,6 +2726,8 @@ Status Tablet::lookup_row_key(
             picked_segments.emplace_back(i);
         }
         if (picked_segments.empty()) {
+            LOG(INFO) << "DEBUG: lookup_row_key, rowset version: " << rs->version()
+                      << ", no matching segments, skip";
             continue;
         }
 
