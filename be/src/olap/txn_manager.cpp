@@ -391,8 +391,8 @@ Status TxnManager::publish_txn(OlapMeta* meta, TPartitionId partition_id,
         }
         stats->partial_update_write_segment_us = MonotonicMicros() - t3;
         int64_t t4 = MonotonicMicros();
-        std::shared_lock rlock(tablet->get_header_lock());
-        tablet->save_meta();
+        // std::shared_lock rlock(tablet->get_header_lock());
+        // tablet->save_meta();
         stats->save_meta_time_us = MonotonicMicros() - t4;
     }
 
