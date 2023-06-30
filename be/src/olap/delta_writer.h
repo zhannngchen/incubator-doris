@@ -132,6 +132,9 @@ public:
 
     int64_t total_received_rows() const { return _total_received_rows; }
 
+    // For UT
+    DeleteBitmapPtr get_delete_bitmap() {return _delete_bitmap;}
+
 private:
     DeltaWriter(WriteRequest* req, StorageEngine* storage_engine, RuntimeProfile* profile,
                 const UniqueId& load_id);
