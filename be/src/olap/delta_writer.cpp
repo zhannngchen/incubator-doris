@@ -467,6 +467,8 @@ Status DeltaWriter::submit_calc_delete_bitmap_task(std::unique_ptr<RowsetWriter>
     // transient rowset writer to write the new segments, then merge it back the original
     // rowset.
     RETURN_IF_ERROR(_tablet->create_transient_rowset_writer(_cur_rowset, rowset_writer));
+    LOG(INFO) << "submit calc delete bitmap task to executor, tablet_id: " << _tablet->tablet_id()
+              << ", txn_id: " << _req.txn_id;
     return _tablet->commit_phase_update_delete_bitmap(
             _cur_rowset, _rowset_ids, _delete_bitmap, segments, _req.txn_id,
             _calc_delete_bitmap_token.get(), rowset_writer->get());
@@ -479,6 +481,8 @@ Status DeltaWriter::wait_calc_delete_bitmap(RowsetWriter* rowset_writer) {
     std::lock_guard<std::mutex> l(_lock);
     RETURN_IF_ERROR(_calc_delete_bitmap_token->wait());
     RETURN_IF_ERROR(_calc_delete_bitmap_token->get_delete_bitmap(_delete_bitmap));
+    LOG(INFO) << "Got result of calc delete bitmap task from executor, tablet_id: "
+              << _tablet->tablet_id() << ", txn_id: " << _req.txn_id;
     if (_cur_rowset->tablet_schema()->is_partial_update()) {
         // build rowset writer and merge transient rowset
         RETURN_IF_ERROR(rowset_writer->flush());

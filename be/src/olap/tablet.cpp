@@ -3211,17 +3211,12 @@ Status Tablet::commit_phase_update_delete_bitmap(
         cur_rowset_ids = all_rs_id(cur_version);
         _rowset_ids_difference(cur_rowset_ids, pre_rowset_ids, &rowset_ids_to_add,
                                &rowset_ids_to_del);
-        if (!rowset_ids_to_add.empty() || !rowset_ids_to_del.empty()) {
-            LOG(INFO) << "rowset_ids_to_add: " << rowset_ids_to_add.size()
-                      << ", rowset_ids_to_del: " << rowset_ids_to_del.size();
-        }
         specified_rowsets = get_rowset_by_ids(&rowset_ids_to_add);
     }
     for (const auto& to_del : rowset_ids_to_del) {
         delete_bitmap->remove({to_del, 0, 0}, {to_del, UINT32_MAX, INT64_MAX});
     }
 
-    OlapStopWatch watch;
     RETURN_IF_ERROR(calc_delete_bitmap(rowset, segments, specified_rowsets, delete_bitmap,
                                        cur_version, token, rowset_writer));
     size_t total_rows = std::accumulate(
@@ -3231,7 +3226,7 @@ Status Tablet::commit_phase_update_delete_bitmap(
               << ", rowset_ids to add: " << rowset_ids_to_add.size()
               << ", rowset_ids to del: " << rowset_ids_to_del.size()
               << ", cur max_version: " << cur_version << ", transaction_id: " << txn_id
-              << ", cost: " << watch.get_elapse_time_us() << "(us), total rows: " << total_rows;
+              << ", total rows: " << total_rows;
     pre_rowset_ids = cur_rowset_ids;
     return Status::OK();
 }
