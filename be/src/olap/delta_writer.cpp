@@ -441,6 +441,7 @@ Status DeltaWriter::build_rowset() {
         LOG(WARNING) << "fail to build rowset";
         return Status::Error<MEM_ALLOC_FAILED>();
     }
+    return Status::OK();
 }
 
 Status DeltaWriter::submit_calc_delete_bitmap_task(std::unique_ptr<RowsetWriter>* rowset_writer){
@@ -465,7 +466,7 @@ Status DeltaWriter::submit_calc_delete_bitmap_task(std::unique_ptr<RowsetWriter>
     // commit_phase_update_delete_bitmap() may generate new segments, we need to create a new
     // transient rowset writer to write the new segments, then merge it back the original
     // rowset.
-    _tablet->create_transient_rowset_writer(_cur_rowset, rowset_writer);
+    RETURN_IF_ERROR(_tablet->create_transient_rowset_writer(_cur_rowset, rowset_writer));
     RETURN_IF_ERROR(_tablet->commit_phase_update_delete_bitmap(
             _cur_rowset, _rowset_ids, _delete_bitmap, segments, _req.txn_id,
             _calc_delete_bitmap_token.get(), rowset_writer->get()));
@@ -476,8 +477,8 @@ Status DeltaWriter::wait_calc_delete_bitmap(RowsetWriter* rowset_writer) {
         return Status::OK();
     }
     std::lock_guard<std::mutex> l(_lock);
-    _calc_delete_bitmap_token->wait();
-    _calc_delete_bitmap_token->get_delete_bitmap(_delete_bitmap);
+    RETURN_IF_ERROR(_calc_delete_bitmap_token->wait());
+    RETURN_IF_ERROR(_calc_delete_bitmap_token->get_delete_bitmap(_delete_bitmap));
     if (_cur_rowset->tablet_schema()->is_partial_update()) {
         // build rowset writer and merge transient rowset
         RETURN_IF_ERROR(rowset_writer->flush());
@@ -487,6 +488,7 @@ Status DeltaWriter::wait_calc_delete_bitmap(RowsetWriter* rowset_writer) {
         // erase segment cache cause we will add a segment to rowset
         SegmentLoader::instance()->erase_segment(_cur_rowset->rowset_id());
     }
+    return Status::OK();
 }
 
 Status DeltaWriter::commit_txn(const PSlaveTabletNodes& slave_tablet_nodes,

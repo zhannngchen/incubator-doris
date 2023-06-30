@@ -29,12 +29,12 @@
 #include "olap/rowset/rowset.h"
 #include "olap/rowset/rowset_writer.h"
 #include "olap/rowset/segment_v2/segment.h"
-#include "olap/tablet.h"
 #include "util/threadpool.h"
 
 namespace doris {
 
 class DataDir;
+class Tablet;
 enum RowsetTypePB : int;
 using TabletSharedPtr = std::shared_ptr<Tablet>;
 

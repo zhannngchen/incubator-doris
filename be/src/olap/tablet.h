@@ -42,7 +42,6 @@
 #include "common/status.h"
 #include "olap/base_tablet.h"
 #include "olap/binlog_config.h"
-#include "olap/calc_delete_bitmap_executor.h"
 #include "olap/data_dir.h"
 #include "olap/olap_common.h"
 #include "olap/rowset/rowset.h"
@@ -71,6 +70,7 @@ class RowIdConversion;
 class TTabletInfo;
 class TabletMetaPB;
 class TupleDescriptor;
+class CalcDeleteBitmapToken;
 enum CompressKind : int;
 
 namespace io {

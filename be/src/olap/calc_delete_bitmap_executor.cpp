@@ -24,6 +24,7 @@
 #include "common/config.h"
 #include "common/logging.h"
 #include "olap/memtable.h"
+#include "olap/tablet.h"
 #include "util/time.h"
 
 namespace doris {
@@ -43,7 +44,7 @@ Status CalcDeleteBitmapToken::submit(TabletSharedPtr tablet, RowsetSharedPtr cur
         std::lock_guard wlock(_lock);
         _delete_bitmaps.push_back(bitmap);
     }
-    _thread_token->submit_func([=, this]() {
+    return _thread_token->submit_func([=, this]() {
       auto st = tablet->calc_segment_delete_bitmap(cur_rowset, cur_segment, target_rowsets,
                                                      bitmap, end_version, rowset_writer);
         if (!st.ok()) {
