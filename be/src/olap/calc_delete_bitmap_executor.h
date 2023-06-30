@@ -26,14 +26,17 @@
 #include <vector>
 
 #include "common/status.h"
+#include "olap/rowset/rowset.h"
+#include "olap/rowset/rowset_writer.h"
+#include "olap/rowset/segment_v2/segment.h"
 #include "olap/tablet.h"
-#include "tablet.h"
 #include "util/threadpool.h"
 
 namespace doris {
 
 class DataDir;
 enum RowsetTypePB : int;
+using TabletSharedPtr = std::shared_ptr<Tablet>;
 
 // A thin wrapper of ThreadPoolToken to submit calc delete bitmap task.
 class CalcDeleteBitmapToken {
