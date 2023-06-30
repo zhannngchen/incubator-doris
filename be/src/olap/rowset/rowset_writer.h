@@ -84,7 +84,7 @@ public:
 
     // we have to load segment data to build delete_bitmap for current segment,
     // so we  build a tmp rowset ptr to load segment data.
-    // real build will be called in DeltaWriter close_wait.
+    // real build will be called in DeltaWriter commit_txn.
     virtual RowsetSharedPtr build_tmp() = 0;
 
     // For ordered rowset compaction, manual build rowset

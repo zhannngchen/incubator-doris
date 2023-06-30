@@ -473,7 +473,7 @@ TEST_F(TestDeltaWriter, open) {
     EXPECT_NE(delta_writer, nullptr);
     res = delta_writer->close();
     EXPECT_EQ(Status::OK(), res);
-    res = delta_writer->close_wait(PSlaveTabletNodes(), false);
+    res = delta_writer->commit_txn(PSlaveTabletNodes(), false);
     EXPECT_EQ(Status::OK(), res);
     SAFE_DELETE(delta_writer);
 
@@ -593,7 +593,7 @@ TEST_F(TestDeltaWriter, vec_write) {
 
     res = delta_writer->close();
     ASSERT_TRUE(res.ok());
-    res = delta_writer->close_wait(PSlaveTabletNodes(), false);
+    res = delta_writer->commit_txn(PSlaveTabletNodes(), false);
     ASSERT_TRUE(res.ok());
 
     // publish version success
@@ -708,7 +708,7 @@ TEST_F(TestDeltaWriter, vec_sequence_col) {
     }
     res = delta_writer->close();
     ASSERT_TRUE(res.ok());
-    res = delta_writer->close_wait(PSlaveTabletNodes(), false);
+    res = delta_writer->commit_txn(PSlaveTabletNodes(), false);
     ASSERT_TRUE(res.ok());
 
     // publish version success

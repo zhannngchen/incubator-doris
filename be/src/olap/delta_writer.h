@@ -89,11 +89,14 @@ public:
 
     Status append(const vectorized::Block* block);
 
-    // flush the last memtable to flush queue, must call it before close_wait()
+    // flush the last memtable to flush queue, must call it before commit_txn()
     Status close();
+    Status build_rowset();
+    Status submit_calc_delete_bitmap_task(std::unique_ptr<RowsetWriter>* rowset_writer);
+    Status wait_calc_delete_bitmap(RowsetWriter* rowset_writer);
     // wait for all memtables to be flushed.
     // mem_consumption() should be 0 after this function returns.
-    Status close_wait(const PSlaveTabletNodes& slave_tablet_nodes, const bool write_single_replica);
+    Status commit_txn(const PSlaveTabletNodes& slave_tablet_nodes, const bool write_single_replica);
 
     bool check_slave_replicas_done(google::protobuf::Map<int64_t, PSuccessSlaveTabletNodeIds>*
                                            success_slave_tablet_node_ids);
@@ -181,6 +184,7 @@ private:
     std::shared_mutex _slave_node_lock;
 
     DeleteBitmapPtr _delete_bitmap = nullptr;
+    std::unique_ptr<CalcDeleteBitmapToken> _calc_delete_bitmap_token;
     // current rowset_ids, used to do diff in publish_version
     RowsetIdUnorderedSet _rowset_ids;
     // current max version, used to calculate delete bitmap

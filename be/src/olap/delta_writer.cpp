@@ -124,6 +124,10 @@ DeltaWriter::~DeltaWriter() {
         }
     }
 
+    if (_calc_delete_bitmap_token != nullptr) {
+        _calc_delete_bitmap_token->cancel();
+    }
+
     if (_tablet != nullptr) {
         _tablet->data_dir()->remove_pending_ids(ROWSET_ID_PREFIX +
                                                 _rowset_writer->rowset_id().to_string());
@@ -215,6 +219,7 @@ Status DeltaWriter::init() {
     bool should_serial = false;
     RETURN_IF_ERROR(_storage_engine->memtable_flush_executor()->create_flush_token(
             &_flush_token, _rowset_writer->type(), should_serial, _req.is_high_priority));
+    _calc_delete_bitmap_token = _storage_engine->calc_delete_bitmap_executor()->create_token();
 
     _is_init = true;
     return Status::OK();
@@ -401,12 +406,10 @@ Status DeltaWriter::close() {
     }
 }
 
-Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
-                               const bool write_single_replica) {
-    SCOPED_TIMER(_close_wait_timer);
+Status DeltaWriter::build_rowset() {
     std::lock_guard<std::mutex> l(_lock);
     DCHECK(_is_init)
-            << "delta writer is supposed be to initialized before close_wait() being called";
+            << "delta writer is supposed be to initialized before commit_txn() being called";
 
     if (_is_cancelled) {
         return _cancel_status;
@@ -438,40 +441,58 @@ Status DeltaWriter::close_wait(const PSlaveTabletNodes& slave_tablet_nodes,
         LOG(WARNING) << "fail to build rowset";
         return Status::Error<MEM_ALLOC_FAILED>();
     }
+}
 
-    if (_tablet->enable_unique_key_merge_on_write()) {
-        auto beta_rowset = reinterpret_cast<BetaRowset*>(_cur_rowset.get());
-        std::vector<segment_v2::SegmentSharedPtr> segments;
-        RETURN_IF_ERROR(beta_rowset->load_segments(&segments));
-        // tablet is under alter process. The delete bitmap will be calculated after conversion.
-        if (_tablet->tablet_state() == TABLET_NOTREADY &&
-            SchemaChangeHandler::tablet_in_converting(_tablet->tablet_id())) {
-            return Status::OK();
-        }
-        if (segments.size() > 1) {
-            // calculate delete bitmap between segments
-            RETURN_IF_ERROR(_tablet->calc_delete_bitmap_between_segments(_cur_rowset, segments,
-                                                                         _delete_bitmap));
-        }
-
-        // commit_phase_update_delete_bitmap() may generate new segments, we need to create a new
-        // transient rowset writer to write the new segments, then merge it back the original
-        // rowset.
-        std::unique_ptr<RowsetWriter> rowset_writer;
-        _tablet->create_transient_rowset_writer(_cur_rowset, &rowset_writer);
-        RETURN_IF_ERROR(_tablet->commit_phase_update_delete_bitmap(
-                _cur_rowset, _rowset_ids, _delete_bitmap, segments, _req.txn_id,
-                rowset_writer.get()));
-        if (_cur_rowset->tablet_schema()->is_partial_update()) {
-            // build rowset writer and merge transient rowset
-            RETURN_IF_ERROR(rowset_writer->flush());
-            RowsetSharedPtr transient_rowset = rowset_writer->build();
-            _cur_rowset->merge_rowset_meta(transient_rowset->rowset_meta());
-
-            // erase segment cache cause we will add a segment to rowset
-            SegmentLoader::instance()->erase_segment(_cur_rowset->rowset_id());
-        }
+Status DeltaWriter::submit_calc_delete_bitmap_task(std::unique_ptr<RowsetWriter>* rowset_writer){
+    if (!_tablet->enable_unique_key_merge_on_write()) {
+        return Status::OK();
     }
+    std::lock_guard<std::mutex> l(_lock);
+    auto beta_rowset = reinterpret_cast<BetaRowset*>(_cur_rowset.get());
+    std::vector<segment_v2::SegmentSharedPtr> segments;
+    RETURN_IF_ERROR(beta_rowset->load_segments(&segments));
+    // tablet is under alter process. The delete bitmap will be calculated after conversion.
+    if (_tablet->tablet_state() == TABLET_NOTREADY &&
+        SchemaChangeHandler::tablet_in_converting(_tablet->tablet_id())) {
+        return Status::OK();
+    }
+    if (segments.size() > 1) {
+        // calculate delete bitmap between segments
+        RETURN_IF_ERROR(_tablet->calc_delete_bitmap_between_segments(_cur_rowset, segments,
+                                                                     _delete_bitmap));
+    }
+
+    // commit_phase_update_delete_bitmap() may generate new segments, we need to create a new
+    // transient rowset writer to write the new segments, then merge it back the original
+    // rowset.
+    _tablet->create_transient_rowset_writer(_cur_rowset, rowset_writer);
+    RETURN_IF_ERROR(_tablet->commit_phase_update_delete_bitmap(
+            _cur_rowset, _rowset_ids, _delete_bitmap, segments, _req.txn_id,
+            _calc_delete_bitmap_token.get(), rowset_writer->get()));
+}
+
+Status DeltaWriter::wait_calc_delete_bitmap(RowsetWriter* rowset_writer) {
+    if (!_tablet->enable_unique_key_merge_on_write()) {
+        return Status::OK();
+    }
+    std::lock_guard<std::mutex> l(_lock);
+    _calc_delete_bitmap_token->wait();
+    _calc_delete_bitmap_token->get_delete_bitmap(_delete_bitmap);
+    if (_cur_rowset->tablet_schema()->is_partial_update()) {
+        // build rowset writer and merge transient rowset
+        RETURN_IF_ERROR(rowset_writer->flush());
+        RowsetSharedPtr transient_rowset = rowset_writer->build();
+        _cur_rowset->merge_rowset_meta(transient_rowset->rowset_meta());
+
+        // erase segment cache cause we will add a segment to rowset
+        SegmentLoader::instance()->erase_segment(_cur_rowset->rowset_id());
+    }
+}
+
+Status DeltaWriter::commit_txn(const PSlaveTabletNodes& slave_tablet_nodes,
+                               const bool write_single_replica) {
+    std::lock_guard<std::mutex> l(_lock);
+    SCOPED_TIMER(_close_wait_timer);
     Status res = _storage_engine->txn_manager()->commit_txn(_req.partition_id, _tablet, _req.txn_id,
                                                             _req.load_id, _cur_rowset, false);
 
@@ -537,6 +558,9 @@ Status DeltaWriter::cancel_with_status(const Status& st) {
     if (_flush_token != nullptr) {
         // cancel and wait all memtables in flush queue to be finished
         _flush_token->cancel();
+    }
+    if (_calc_delete_bitmap_token != nullptr) {
+        _calc_delete_bitmap_token->cancel();
     }
     _is_cancelled = true;
     _cancel_status = st;
