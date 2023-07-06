@@ -380,7 +380,7 @@ void MemTable::_aggregate() {
                 LOG(INFO) << "DEBUG: _num_columns: " << _num_columns << ": "
                           << tablet_schema_ss.str();
 
-                for (auto cid = _schema->num_key_columns(); cid < _schema->num_columns(); cid++) {
+                for (auto cid = _schema->num_key_columns(); cid < _num_columns; cid++) {
                     auto col_ptr = mutable_block.mutable_columns()[cid].get();
                     auto data = prev_row->agg_places(cid);
                     _agg_functions[cid]->create(data);
