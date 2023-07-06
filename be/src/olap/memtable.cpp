@@ -219,6 +219,9 @@ void MemTable::insert(const vectorized::Block* input_block, const std::vector<in
 
 void MemTable::_aggregate_two_row_in_block(vectorized::MutableBlock& mutable_block,
                                            RowInBlock* new_row, RowInBlock* row_in_skiplist) {
+
+    LOG(INFO) << "DEBUG: int _aggregate_two_row_in_block, " << mutable_block.rows() << ", "
+              << new_row->_row_pos << ", " << row_in_skiplist->_row_pos;
     if (_tablet_schema->has_sequence_col()) {
         auto sequence_idx = _tablet_schema->sequence_col_idx();
         DCHECK_LT(sequence_idx, mutable_block.columns());
@@ -232,6 +235,7 @@ void MemTable::_aggregate_two_row_in_block(vectorized::MutableBlock& mutable_blo
         // sequence column
         row_in_skiplist->_row_pos = new_row->_row_pos;
     }
+    LOG(INFO) << "DEBUG: pass seq col";
     // dst is non-sequence row, or dst sequence is smaller
     for (uint32_t cid = _schema->num_key_columns(); cid < _num_columns; ++cid) {
         auto col_ptr = mutable_block.mutable_columns()[cid].get();
@@ -390,6 +394,8 @@ void MemTable::_aggregate() {
                 }
             }
             _stat.merged_rows++;
+            LOG(INFO) << "DEBUG: call _aggregate_two_row_in_block, " << mutable_block.rows() << ", "
+                      << _row_in_blocks[i]->_row_pos << ", " << prev_row->_row_pos;
             _aggregate_two_row_in_block(mutable_block, _row_in_blocks[i], prev_row);
         } else {
             prev_row = _row_in_blocks[i];
