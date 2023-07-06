@@ -97,6 +97,7 @@ MemTable::MemTable(TabletSharedPtr tablet, Schema* schema, const TabletSchema* t
     _num_columns = _tablet_schema->num_columns();
     if (_tablet_schema->is_partial_update()) {
         _num_columns = _tablet_schema->partial_input_column_size();
+        LOG(INFO) << "DEBUG: is partial update, _num_columns:" << _num_columns;
     }
 }
 void MemTable::_init_columns_offset_by_slot_descs(const std::vector<SlotDescriptor*>* slot_descs,
