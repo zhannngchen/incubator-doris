@@ -367,6 +367,19 @@ void MemTable::_aggregate() {
                 prev_row->init_agg_places(
                         _arena->aligned_alloc(_total_size_of_aggregate_states, 16),
                         _offsets_of_aggregate_states.data());
+                std::stringstream schema_ss;
+                for (auto c : _schema->columns()) {
+                    schema_ss << c->name() << ",";
+                }
+                std::stringstream tablet_schema_ss;
+                for (auto c : _tablet_schema->columns()) {
+                    tablet_schema_ss << c.name() << ",";
+                }
+                LOG(INFO) << "DEBUG: _schema num columns: " << _schema->num_columns() << " : "
+                          << schema_ss.str();
+                LOG(INFO) << "DEBUG: _num_columns: " << _num_columns << ": "
+                          << tablet_schema_ss.str();
+
                 for (auto cid = _schema->num_key_columns(); cid < _schema->num_columns(); cid++) {
                     auto col_ptr = mutable_block.mutable_columns()[cid].get();
                     auto data = prev_row->agg_places(cid);
