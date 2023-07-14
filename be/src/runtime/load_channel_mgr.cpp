@@ -150,14 +150,21 @@ Status LoadChannelMgr::open(const PTabletWriterOpenRequest& params, OpenStats* s
 Status LoadChannelMgr::open_partition(const OpenPartitionRequest& params) {
     UniqueId load_id(params.id());
     std::shared_ptr<LoadChannel> channel;
+    int64_t hold_lock_time = 0;
     {
         std::lock_guard<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time);
         auto it = _load_channels.find(load_id);
         if (it != _load_channels.end()) {
             channel = it->second;
         } else {
             return Status::InternalError("unknown load id, load id=" + load_id.to_string());
         }
+    }
+    if (hold_lock_time / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "open_partition";
     }
     RETURN_IF_ERROR(channel->open_partition(params));
     return Status::OK();
@@ -194,7 +201,14 @@ Status LoadChannelMgr::add_batch(const PTabletWriterAddBlockRequest& request,
     // 1. get load channel
     std::shared_ptr<LoadChannel> channel;
     bool is_eof;
+    auto t = MonotonicMillis();
     auto status = _get_load_channel(channel, is_eof, load_id, request);
+    auto hold_lock_time = MonotonicMillis() - t;
+    if (hold_lock_time > 1000) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time << "(ms), operation: "
+                     << "_get_load_channel";
+    }
     if (!status.ok() || is_eof) {
         return status;
     }
@@ -226,11 +240,18 @@ Status LoadChannelMgr::add_batch(const PTabletWriterAddBlockRequest& request,
 
 void LoadChannelMgr::_finish_load_channel(const UniqueId load_id) {
     VLOG_NOTICE << "removing load channel " << load_id << " because it's finished";
+    int64_t hold_lock_time = 0;
     {
         std::lock_guard<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time);
         _load_channels.erase(load_id);
         auto handle = _last_success_channel->insert(load_id.to_string(), nullptr, 1, dummy_deleter);
         _last_success_channel->release(handle);
+    }
+    if (hold_lock_time / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "_finish_load_channel";
     }
     VLOG_CRITICAL << "removed load channel " << load_id;
 }
@@ -238,12 +259,19 @@ void LoadChannelMgr::_finish_load_channel(const UniqueId load_id) {
 Status LoadChannelMgr::cancel(const PTabletWriterCancelRequest& params) {
     UniqueId load_id(params.id());
     std::shared_ptr<LoadChannel> cancelled_channel;
+    int64_t hold_lock_time = 0;
     {
         std::lock_guard<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time);
         if (_load_channels.find(load_id) != _load_channels.end()) {
             cancelled_channel = _load_channels[load_id];
             _load_channels.erase(load_id);
         }
+    }
+    if (hold_lock_time / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "cancel";
     }
 
     if (cancelled_channel != nullptr) {
@@ -272,9 +300,11 @@ Status LoadChannelMgr::_start_load_channels_clean() {
     std::vector<std::shared_ptr<LoadChannel>> need_delete_channels;
     LOG(INFO) << "cleaning timed out load channels";
     time_t now = time(nullptr);
+    int64_t hold_lock_time = 0;
     {
         std::vector<UniqueId> need_delete_channel_ids;
         std::lock_guard<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time);
         int i = 0;
         for (auto& kv : _load_channels) {
             VLOG_CRITICAL << "load channel[" << i++ << "]: " << *(kv.second);
@@ -289,6 +319,11 @@ Status LoadChannelMgr::_start_load_channels_clean() {
             _load_channels.erase(key);
             LOG(INFO) << "erase timeout load channel: " << key;
         }
+    }
+    if (hold_lock_time / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "_start_load_channels_clean";
     }
 
     // we must cancel these load channels before destroying them.
@@ -329,10 +364,12 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
     // tuple<LoadChannel, index_id, tablet_id, mem_size>
     std::vector<std::tuple<std::shared_ptr<LoadChannel>, int64_t, int64_t, int64_t>>
             writers_to_reduce_mem;
+    int64_t hold_lock_time = 0;
     {
         MonotonicStopWatch timer;
         timer.start();
         std::unique_lock<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time);
         while (_should_wait_flush) {
             _wait_flush_cond.wait(l);
         }
@@ -445,6 +482,11 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
         }
         LOG(INFO) << oss.str();
     }
+    if (hold_lock_time / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "_handle_mem_exceed_limit(1)";
+    }
 
     // wait all writers flush without lock
     for (auto item : writers_to_reduce_mem) {
@@ -454,8 +496,10 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
         std::get<0>(item)->wait_flush(std::get<1>(item), std::get<2>(item));
     }
 
+    int64_t hold_lock_time2 = 0;
     {
         std::lock_guard<std::mutex> l(_lock);
+        SCOPED_RAW_TIMER(&hold_lock_time2);
         // If a thread have finished the memtable flush for soft limit, and now
         // the hard limit is already reached, it should not update these variables.
         if (reducing_mem_on_hard_limit && _should_wait_flush) {
@@ -467,6 +511,11 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
         }
         // refresh mem tacker to avoid duplicate reduce
         _refresh_mem_tracker_without_lock();
+    }
+    if (hold_lock_time2 / NANOS_PER_SEC > 1) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time2 / NANOS_PER_MILLIS << "(ms), operation: "
+                     << "_handle_mem_exceed_limit(2)";
     }
 }
 

@@ -282,8 +282,15 @@ void Daemon::load_channel_tracker_refresh_thread() {
     while (!_stop_background_threads_latch.wait_for(
                    std::chrono::milliseconds(config::load_channel_memory_refresh_sleep_time_ms)) &&
            !k_doris_exit) {
+        int64_t hold_lock_time = 0;
         if (ExecEnv::GetInstance()->initialized()) {
+            SCOPED_RAW_TIMER(&hold_lock_time);
             doris::ExecEnv::GetInstance()->load_channel_mgr()->refresh_mem_tracker();
+        }
+        if (hold_lock_time / NANOS_PER_SEC > 1) {
+            LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                         << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
+                         << "refresh_mem_tracker";
         }
     }
 }
