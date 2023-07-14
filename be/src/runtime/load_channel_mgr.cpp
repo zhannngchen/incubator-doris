@@ -177,6 +177,7 @@ Status LoadChannelMgr::_get_load_channel(std::shared_ptr<LoadChannel>& channel, 
                                          const PTabletWriterAddBlockRequest& request) {
     is_eof = false;
     std::lock_guard<std::mutex> l(_lock);
+    auto t = MonotonicMillis();
     auto it = _load_channels.find(load_id);
     if (it == _load_channels.end()) {
         auto handle = _last_success_channel->lookup(load_id.to_string());
@@ -192,6 +193,12 @@ Status LoadChannelMgr::_get_load_channel(std::shared_ptr<LoadChannel>& channel, 
                                      load_id.to_string());
     }
     channel = it->second;
+    auto hold_lock_time = MonotonicMillis() - t;
+    if (hold_lock_time > 1000) {
+        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                     << hold_lock_time << "(ms), operation: "
+                     << "_get_load_channel";
+    }
     return Status::OK();
 }
 
@@ -201,14 +208,8 @@ Status LoadChannelMgr::add_batch(const PTabletWriterAddBlockRequest& request,
     // 1. get load channel
     std::shared_ptr<LoadChannel> channel;
     bool is_eof;
-    auto t = MonotonicMillis();
     auto status = _get_load_channel(channel, is_eof, load_id, request);
-    auto hold_lock_time = MonotonicMillis() - t;
-    if (hold_lock_time > 1000) {
-        LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
-                     << hold_lock_time << "(ms), operation: "
-                     << "_get_load_channel";
-    }
+
     if (!status.ok() || is_eof) {
         return status;
     }

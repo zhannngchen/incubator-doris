@@ -65,7 +65,14 @@ public:
 
     void refresh_mem_tracker() {
         std::lock_guard<std::mutex> l(_lock);
+        auto t = MonotonicMillis();
         _refresh_mem_tracker_without_lock();
+        auto hold_lock_time = MonotonicMillis() - t;
+        if (hold_lock_time > 1000) {
+            LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
+                         << hold_lock_time << "(ms), operation: "
+                         << "refresh_mem_tracker";
+        }
     }
     MemTrackerLimiter* mem_tracker() { return _mem_tracker.get(); }
 
