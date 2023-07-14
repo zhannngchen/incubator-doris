@@ -366,11 +366,17 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
     std::vector<std::tuple<std::shared_ptr<LoadChannel>, int64_t, int64_t, int64_t>>
             writers_to_reduce_mem;
     int64_t hold_lock_time = 0;
+    int64_t t1 = 0;
+    int64_t t2 = 0;
+    int64_t t3 = 0;
+    int64_t t4 = 0;
+    int64_t t5 = 0;
     {
         MonotonicStopWatch timer;
         timer.start();
         std::unique_lock<std::mutex> l(_lock);
         SCOPED_RAW_TIMER(&hold_lock_time);
+        t1 = MonotonicMicros();
         while (_should_wait_flush) {
             _wait_flush_cond.wait(l);
         }
@@ -401,6 +407,7 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
         std::priority_queue<WriterMemItem, std::vector<WriterMemItem>, decltype(cmp)>
                 tablets_mem_heap(cmp);
 
+        t2 = MonotonicMicros();
         for (auto& kv : _load_channels) {
             if (kv.second->is_high_priority()) {
                 // do not select high priority channel to reduce memory
@@ -421,6 +428,8 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
                                          std::get<2>(all_writers_mem[pos]).end(), pos);
             }
         }
+
+        t3 = MonotonicMicros();
 
         // reduce 1/10 memory every time
         int64_t mem_to_flushed = _mem_tracker->consumption() / 10;
@@ -444,6 +453,7 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
             }
         }
 
+        t4 = MonotonicMicros();
         if (writers_to_reduce_mem.empty()) {
             // should not happen, add log to observe
             LOG(WARNING) << "failed to find suitable writers to reduce memory"
@@ -482,11 +492,14 @@ void LoadChannelMgr::_handle_mem_exceed_limit() {
                 << ", vm_rss: " << PerfCounters::get_vm_rss_str();
         }
         LOG(INFO) << oss.str();
+        t5 = MonotonicMicros();
     }
     if (hold_lock_time / NANOS_PER_SEC > 1) {
         LOG(WARNING) << "hold LoadCahnnelMgr's lock too long, takes: "
                      << hold_lock_time / NANOS_PER_MILLIS << "(ms), operation: "
-                     << "_handle_mem_exceed_limit(1)";
+                     << "_handle_mem_exceed_limit(1), details:"
+                     << "prepare: " << t2 - t1 << ", collect: " << t3 - t2
+                     << ", async reduce: " << t4 - t3 << ", rest: " << t5 - t4;
     }
 
     // wait all writers flush without lock
