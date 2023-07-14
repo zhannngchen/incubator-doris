@@ -37,6 +37,7 @@
 #include "util/runtime_profile.h"
 #include "util/spinlock.h"
 #include "util/uid_util.h"
+#include "util/time.h"
 
 namespace google {
 namespace protobuf {
@@ -88,7 +89,7 @@ public:
 
     ~TabletsChannel();
 
-    Status open(const PTabletWriterOpenRequest& request);
+    Status open(const PTabletWriterOpenRequest& request, OpenStats* stats);
 
     // Open specific partition all writers
     Status open_all_writers_for_partition(const OpenPartitionRequest& request);
@@ -131,7 +132,7 @@ private:
     Status _open_all_writers_for_partition(const int64_t& tablet_id,
                                            const TabletWriterAddRequest& request);
     // open all writer
-    Status _open_all_writers(const PTabletWriterOpenRequest& request);
+    Status _open_all_writers(const PTabletWriterOpenRequest& request, OpenStats* stats);
 
     // deal with DeltaWriter close_wait(), add tablet to list for return.
     void _close_wait(DeltaWriter* writer,

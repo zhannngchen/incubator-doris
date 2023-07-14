@@ -63,7 +63,7 @@ void LoadChannel::_init_profile() {
     _add_batch_times = ADD_COUNTER(_self_profile, "AddBatchTimes", TUnit::UNIT);
 }
 
-Status LoadChannel::open(const PTabletWriterOpenRequest& params) {
+Status LoadChannel::open(const PTabletWriterOpenRequest& params, OpenStats* stats) {
     int64_t index_id = params.index_id();
     std::shared_ptr<TabletsChannel> channel;
     {
@@ -83,7 +83,9 @@ Status LoadChannel::open(const PTabletWriterOpenRequest& params) {
         }
     }
 
-    RETURN_IF_ERROR(channel->open(params));
+    auto t1 = MonotonicMicros();
+    RETURN_IF_ERROR(channel->open(params, stats));
+    stats->load_channel_real_open_time_ns = MonotonicMicros() - t1;
 
     _opened = true;
     _last_updated_time.store(time(nullptr));

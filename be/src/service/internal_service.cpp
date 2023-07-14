@@ -242,10 +242,11 @@ void PInternalServiceImpl::tablet_writer_open(google::protobuf::RpcController* c
         }
 
         int64_t execution_time_ns = 0;
+        OpenStats stats;
         {
             SCOPED_RAW_TIMER(&execution_time_ns);
             brpc::ClosureGuard closure_guard(done);
-            auto st = _exec_env->load_channel_mgr()->open(*request);
+            auto st = _exec_env->load_channel_mgr()->open(*request,&stats);
             if (!st.ok()) {
                 LOG(WARNING) << "load channel open failed, message=" << st
                              << ", id=" << request->id() << ", index_id=" << request->index_id()
@@ -256,7 +257,8 @@ void PInternalServiceImpl::tablet_writer_open(google::protobuf::RpcController* c
         if (execution_time_ns > 5*1000*1000) {
             LOG(WARNING) << "tablet writer open, id=" << request->id()
                          << ", index_id=" << request->index_id() << ", txn_id=" << request->txn_id()
-                         << ",  execution too slow, cost: " << execution_time_ns << "(us)";
+                         << ",  execution too slow, cost: " << execution_time_ns
+                         << "(us), detail: " << stats.to_string();
         }
 
     });

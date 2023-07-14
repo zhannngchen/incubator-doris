@@ -88,7 +88,7 @@ void TabletsChannel::_init_profile(RuntimeProfile* profile) {
             memory_usage->AddHighWaterMarkCounter("MaxTabletFlush", TUnit::BYTES);
 }
 
-Status TabletsChannel::open(const PTabletWriterOpenRequest& request) {
+Status TabletsChannel::open(const PTabletWriterOpenRequest& request, OpenStats* stats) {
     std::lock_guard<std::mutex> l(_lock);
     if (_state == kOpened) {
         // Normal case, already open by other sender
@@ -107,7 +107,9 @@ Status TabletsChannel::open(const PTabletWriterOpenRequest& request) {
     _closed_senders.Reset(_num_remaining_senders);
 
     if (!config::enable_lazy_open_partition) {
-        RETURN_IF_ERROR(_open_all_writers(request));
+        auto t = MonotonicMicros();
+        RETURN_IF_ERROR(_open_all_writers(request, stats));
+        stats->tablets_channel_real_open_time_ns = MonotonicMicros() - t;
     } else {
         _build_partition_tablets_relation(request);
     }
@@ -300,7 +302,7 @@ void TabletsChannel::get_active_memtable_mem_consumption(
 }
 
 // Old logic,used for opening all writers of all partitions.
-Status TabletsChannel::_open_all_writers(const PTabletWriterOpenRequest& request) {
+Status TabletsChannel::_open_all_writers(const PTabletWriterOpenRequest& request, OpenStats* stats) {
     std::vector<SlotDescriptor*>* index_slots = nullptr;
     int32_t schema_hash = 0;
     for (auto& index : _schema->indexes()) {
@@ -328,7 +330,9 @@ Status TabletsChannel::_open_all_writers(const PTabletWriterOpenRequest& request
         wrequest.table_schema_param = _schema;
 
         DeltaWriter* writer = nullptr;
+        auto t = MonotonicMicros();
         auto st = DeltaWriter::open(&wrequest, &writer, _profile, _load_id);
+        stats->real_open_time_ns += (MonotonicMicros() - t);
         if (!st.ok()) {
             auto err_msg = fmt::format(
                     "open delta writer failed, tablet_id={}"

@@ -35,6 +35,7 @@
 #include "runtime/thread_context.h"
 #include "util/countdown_latch.h"
 #include "util/uid_util.h"
+#include "util/time.h"
 
 namespace doris {
 
@@ -52,7 +53,7 @@ public:
     Status init(int64_t process_mem_limit);
 
     // open a new load channel if not exist
-    Status open(const PTabletWriterOpenRequest& request);
+    Status open(const PTabletWriterOpenRequest& request, OpenStats* stats);
 
     Status open_partition(const OpenPartitionRequest& params);
 

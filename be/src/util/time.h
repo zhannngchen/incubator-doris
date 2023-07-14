@@ -134,4 +134,23 @@ std::string ToStringFromUnixMicros(int64_t us, TimePrecision p = TimePrecision::
 /// Converts input microseconds-since-epoch to date-time string in UTC time zone.
 std::string ToUtcStringFromUnixMicros(int64_t us, TimePrecision p = TimePrecision::Microsecond);
 
+struct OpenStats {
+    int64_t wait_lock_ns = 0;
+    int64_t create_new_load_channel_ns = 0;
+    int64_t open_time_ns = 0;
+    int64_t load_channel_real_open_time_ns = 0;
+    int64_t tablets_channel_real_open_time_ns = 0;
+    int64_t real_open_time_ns = 0;
+
+    std::string to_string() {
+        return fmt::format(
+                "wait lock time: {}, create_new_load_channel_time: {}, open_time: {}, "
+                "load_channel_real_open_time: {}, tablets_channel_real_open_time: {}, real open "
+                "time: {}",
+                wait_lock_ns, create_new_load_channel_ns, open_time_ns,
+                load_channel_real_open_time_ns, tablets_channel_real_open_time_ns,
+                real_open_time_ns);
+    }
+};
+
 } // namespace doris

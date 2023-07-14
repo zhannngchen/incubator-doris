@@ -44,6 +44,7 @@
 #include "util/perf_counters.h"
 #include "util/pretty_printer.h"
 #include "util/thread.h"
+#include "util/time.h"
 
 namespace doris {
 
@@ -104,11 +105,14 @@ Status LoadChannelMgr::init(int64_t process_mem_limit) {
     return Status::OK();
 }
 
-Status LoadChannelMgr::open(const PTabletWriterOpenRequest& params) {
+Status LoadChannelMgr::open(const PTabletWriterOpenRequest& params, OpenStats* stats) {
     UniqueId load_id(params.id());
     std::shared_ptr<LoadChannel> channel;
+    auto t1 = MonotonicMicros();
     {
         std::lock_guard<std::mutex> l(_lock);
+        auto t2 = MonotonicMicros();
+        stats->wait_lock_ns = t2 - t1;
         auto it = _load_channels.find(load_id);
         if (it != _load_channels.end()) {
             channel = it->second;
@@ -134,9 +138,12 @@ Status LoadChannelMgr::open(const PTabletWriterOpenRequest& params) {
                                           params.backend_id(), params.enable_profile()));
             _load_channels.insert({load_id, channel});
         }
+        stats->create_new_load_channel_ns = MonotonicMicros()-t2;
     }
 
-    RETURN_IF_ERROR(channel->open(params));
+    auto t3 = MonotonicMicros();
+    RETURN_IF_ERROR(channel->open(params, stats));
+    stats->open_time_ns = MonotonicMicros() - t3;
     return Status::OK();
 }
 
