@@ -25,6 +25,8 @@
 
 #include <string>
 
+#include "fmt/format.h"
+
 #define NANOS_PER_SEC 1000000000ll
 #define NANOS_PER_MILLIS 1000000ll
 #define NANOS_PER_MICRO 1000ll
