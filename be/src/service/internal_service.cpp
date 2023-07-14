@@ -230,15 +230,15 @@ void PInternalServiceImpl::tablet_writer_open(google::protobuf::RpcController* c
                                               const PTabletWriterOpenRequest* request,
                                               PTabletWriterOpenResult* response,
                                               google::protobuf::Closure* done) {
-    int64_t submit_task_time_ns = MonotonicNanos();
-    bool ret = _light_work_pool.try_offer([this, request, response, done, submit_task_time_ns]() {
+    int64_t submit_task_time_us = MonotonicMicros();
+    bool ret = _light_work_pool.try_offer([this, request, response, done, submit_task_time_us]() {
         VLOG_RPC << "tablet writer open, id=" << request->id()
                  << ", index_id=" << request->index_id() << ", txn_id=" << request->txn_id();
-        int64_t wait_execution_time_ns = MonotonicNanos() - submit_task_time_ns;
-        if (wait_execution_time_ns > 1*1000*1000) {
+        int64_t wait_execution_time_us = MonotonicMicros() - submit_task_time_us;
+        if (wait_execution_time_us > 1 * MICROS_PER_SEC) {
             LOG(WARNING) << "tablet writer open, id=" << request->id()
                          << ", index_id=" << request->index_id() << ", txn_id=" << request->txn_id()
-                         << ", wait for schedule too long: " << wait_execution_time_ns << "(us)";
+                         << ", wait for schedule too long: " << wait_execution_time_us << "(us)";
         }
 
         int64_t execution_time_ns = 0;
@@ -254,13 +254,12 @@ void PInternalServiceImpl::tablet_writer_open(google::protobuf::RpcController* c
             }
             st.to_protobuf(response->mutable_status());
         }
-        if (execution_time_ns > 5*1000*1000) {
+        if (execution_time_ns / NANOS_PER_MICRO > 5 * MICROS_PER_SEC) {
             LOG(WARNING) << "tablet writer open, id=" << request->id()
                          << ", index_id=" << request->index_id() << ", txn_id=" << request->txn_id()
-                         << ",  execution too slow, cost: " << execution_time_ns
+                         << ",  execution too slow, cost: " << execution_time_ns / NANOS_PER_MICRO
                          << "(us), detail: " << stats.to_string();
         }
-
     });
     if (!ret) {
         LOG(WARNING) << "fail to offer request to the work pool";
