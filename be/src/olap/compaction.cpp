@@ -96,7 +96,10 @@ void Compaction::init_profile(const std::string& label) {
 }
 
 Status Compaction::compact() {
-    RETURN_IF_ERROR(prepare_compact());
+    Status st = prepare_compact();
+    if (!st.ok()) {
+        return Status::InternalError("prepare cumulative compaction with err: {}", st);
+    }
     RETURN_IF_ERROR(execute_compact());
     return Status::OK();
 }
