@@ -34,13 +34,12 @@ CREATE TABLE lineitem (
     l_shipmode     VARCHAR(10) NOT NULL,
     l_comment      VARCHAR(44) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`l_shipdate`, `l_orderkey`)
+DUPLICATE KEY(`l_shipdate`, `l_orderkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`l_orderkey`) BUCKETS 32
 PROPERTIES (
     "replication_num" = "1",
-    "colocate_with" = "lineitem_orders",
-    "enable_unique_key_merge_on_write" = "true"
+    "colocate_with" = "lineitem_orders"
 );
 
 drop table if exists orders;
@@ -55,13 +54,12 @@ CREATE TABLE orders  (
     o_shippriority   int NOT NULL,
     o_comment        VARCHAR(79) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`o_orderkey`, `o_orderdate`)
+DUPLICATE KEY(`o_orderkey`, `o_orderdate`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`o_orderkey`) BUCKETS 32
 PROPERTIES (
     "replication_num" = "1",
-    "colocate_with" = "lineitem_orders",
-    "enable_unique_key_merge_on_write" = "true"
+    "colocate_with" = "lineitem_orders"
 );
 
 drop table if exists partsupp;
@@ -72,13 +70,12 @@ CREATE TABLE partsupp (
     ps_supplycost  decimal(15, 2)  NOT NULL,
     ps_comment     VARCHAR(199) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`ps_partkey`)
+DUPLICATE KEY(`ps_partkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`ps_partkey`) BUCKETS 12
 PROPERTIES (
     "replication_num" = "1",
-    "colocate_with" = "part_partsupp",
-    "enable_unique_key_merge_on_write" = "true"
+    "colocate_with" = "part_partsupp"
 );
 
 drop table if exists part;
@@ -93,13 +90,12 @@ CREATE TABLE part (
     p_retailprice decimal(15, 2) NOT NULL,
     p_comment     VARCHAR(23) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`p_partkey`)
+DUPLICATE KEY(`p_partkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`p_partkey`) BUCKETS 12
 PROPERTIES (
     "replication_num" = "1",
-    "colocate_with" = "part_partsupp",
-    "enable_unique_key_merge_on_write" = "true"
+    "colocate_with" = "part_partsupp"
 );
 
 drop table if exists customer;
@@ -113,12 +109,11 @@ CREATE TABLE customer (
     c_mktsegment  VARCHAR(10) NOT NULL,
     c_comment     VARCHAR(117) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`c_custkey`)
+DUPLICATE KEY(`c_custkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`c_custkey`) BUCKETS 12
 PROPERTIES (
-    "replication_num" = "1",
-    "enable_unique_key_merge_on_write" = "true"
+    "replication_num" = "1"
 );
 
 drop table if exists supplier;
@@ -131,12 +126,11 @@ CREATE TABLE supplier (
     s_acctbal     decimal(15, 2) NOT NULL,
     s_comment     VARCHAR(101) NOT NULL
 )ENGINE=OLAP
-UNIQUE KEY(`s_suppkey`)
+DUPLICATE KEY(`s_suppkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`s_suppkey`) BUCKETS 6
 PROPERTIES (
-    "replication_num" = "1",
-    "enable_unique_key_merge_on_write" = "true"
+    "replication_num" = "1"
 );
 
 drop table if exists nation;
@@ -146,12 +140,11 @@ CREATE TABLE `nation` (
   `n_regionkey` int(11) NOT NULL,
   `n_comment`   varchar(152) NULL
 ) ENGINE=OLAP
-UNIQUE KEY(`N_NATIONKEY`)
+DUPLICATE KEY(`N_NATIONKEY`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`N_NATIONKEY`) BUCKETS 1
 PROPERTIES (
-    "replication_num" = "1",
-    "enable_unique_key_merge_on_write" = "true"
+    "replication_num" = "1"
 );
 
 drop table if exists region;
@@ -160,12 +153,11 @@ CREATE TABLE region  (
     r_name       VARCHAR(25) NOT NULL,
     r_comment    VARCHAR(152)
 )ENGINE=OLAP
-UNIQUE KEY(`r_regionkey`)
+DUPLICATE KEY(`r_regionkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`r_regionkey`) BUCKETS 1
 PROPERTIES (
-    "replication_num" = "1",
-    "enable_unique_key_merge_on_write" = "true"
+    "replication_num" = "1"
 );
 
 drop view if exists revenue0;
