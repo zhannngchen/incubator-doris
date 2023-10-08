@@ -19,6 +19,7 @@
 
 # check DORIS_HOME
 export LC_ALL=C
+export DORIS_HOME=/mnt/disk2/zhangchen/doris-dev
 
 if [[ -z "${DORIS_HOME}" ]]; then
     echo "Error: DORIS_HOME is not set"

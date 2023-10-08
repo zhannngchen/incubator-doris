@@ -16,7 +16,7 @@
 // under the License.
 
 
-suite("load_one_step") {
+suite("load_one_step_xx") {
     def tables = ["customer": ["""c_custkey,c_name,c_address,c_city,c_nation,c_region,c_phone,c_mktsegment,no_use""", 3000],
                   "lineorder": ["""lo_orderkey,lo_linenumber,lo_custkey,lo_partkey,lo_suppkey,lo_orderdate,lo_orderpriority, 
                                 lo_shippriority,lo_quantity,lo_extendedprice,lo_ordtotalprice,lo_discount, 
