@@ -1708,6 +1708,7 @@ Status SegmentIterator::_read_columns_by_index(uint32_t nrows_read_limit, uint32
 
         _split_row_ranges.emplace_back(std::pair {range_from, range_to});
     } while (nrows_read < nrows_read_limit && !_opts.read_orderby_key_reverse);
+    LOG(INFO) << "DEBUG: _split_row_ranges.size() is " << _split_row_ranges.size();
 
     for (auto cid : _first_read_column_ids) {
         auto& column = _current_return_columns[cid];
