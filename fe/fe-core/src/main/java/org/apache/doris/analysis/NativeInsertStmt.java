@@ -76,6 +76,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -540,6 +541,8 @@ public class NativeInsertStmt extends InsertStmt {
                 continue;
             }
             if (col.getDefaultValue() == null && !col.isAllowNull()) {
+                LOG.info("DEBUG: input col:" + Arrays.toString(mentionedCols.toArray()) + ", base columns: "
+                        + Arrays.toString(baseColumns.toArray()));
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_COL_NOT_MENTIONED, col.getName());
             }
         }
@@ -554,6 +557,7 @@ public class NativeInsertStmt extends InsertStmt {
             // the mentioned columns are columns which are visible to user, so here we use
             // getBaseSchema(), not getFullSchema()
             for (Column col : targetTable.getBaseSchema(false)) {
+                LOG.info("DEBUG: Add to mentioned column: " + col.getName());
                 mentionedColumns.add(col.getName());
                 targetColumns.add(col);
             }
@@ -563,7 +567,9 @@ public class NativeInsertStmt extends InsertStmt {
                 if (col == null) {
                     ErrorReport.reportAnalysisException(ErrorCode.ERR_BAD_FIELD_ERROR, colName, targetTable.getName());
                 }
+                LOG.info("DEBUG: Add to mentioned column: " + col.getName());
                 if (!mentionedColumns.add(colName)) {
+                    LOG.info("DEBUG: Add to mentioned column: " + col.getName() + " failed!");
                     ErrorReport.reportAnalysisException(ErrorCode.ERR_FIELD_SPECIFIED_TWICE, colName);
                 }
                 targetColumns.add(col);
