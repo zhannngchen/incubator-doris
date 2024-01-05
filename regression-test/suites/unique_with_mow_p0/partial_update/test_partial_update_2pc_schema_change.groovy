@@ -72,7 +72,6 @@ suite("test_partial_update_2pc_schema_change", "p0") {
                 file 'concurrency_update3.csv'
                 time 10000 // limit inflight 10s
             }
-            sql "sync;"
             qt_sql """ select * from ${tableName} order by k1;"""
 
 
@@ -154,7 +153,7 @@ suite("test_partial_update_2pc_schema_change", "p0") {
                     assertEquals("success", json.Status.toLowerCase())
                 }
             }
-            sql "sync;"
+
             sql """ alter table ${tableName} modify column v2 varchar(40);"""
             wait_for_schema_change()
 
@@ -166,7 +165,7 @@ suite("test_partial_update_2pc_schema_change", "p0") {
 
             sql """ alter table ${tableName} rename column v4 renamed_v4;"""
             wait_for_schema_change()
-            sql "sync;"
+
             streamLoad {
                 table "${tableName}"
                 set 'column_separator', ','
@@ -177,11 +176,11 @@ suite("test_partial_update_2pc_schema_change", "p0") {
                 file 'concurrency_update2.csv'
                 time 10000 // limit inflight 10s
             }
-            sql "sync;"
+
             qt_sql """ select * from ${tableName} order by k1;"""
 
             do_streamload_2pc(txnId, "commit", tableName)
-            sql "sync;"
+            
             qt_sql """ select * from ${tableName} order by k1;"""
 
             sql "drop table if exists ${tableName};"
