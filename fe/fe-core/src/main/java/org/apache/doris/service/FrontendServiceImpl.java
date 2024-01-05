@@ -2049,9 +2049,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                     throw new UserException("txn does not exist: " + request.getTxnId());
                 }
                 txnState.addTableIndexes(table);
-                if (request.isPartialUpdate()) {
-                    txnState.setSchemaForPartialUpdate(table);
-                }
             }
             plan.setTableName(table.getName());
             plan.query_options.setFeProcessUuid(ExecuteEnv.getInstance().getProcessUUID());
@@ -2115,9 +2112,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                     throw new UserException("txn does not exist: " + request.getTxnId());
                 }
                 txnState.addTableIndexes(table);
-                if (request.isPartialUpdate()) {
-                    txnState.setSchemaForPartialUpdate(table);
-                }
             }
             return plan;
         } finally {

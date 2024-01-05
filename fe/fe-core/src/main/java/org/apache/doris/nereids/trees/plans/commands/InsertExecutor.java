@@ -182,9 +182,6 @@ public class InsertExecutor {
             throw new AnalysisException("txn does not exist: " + txnId);
         }
         state.addTableIndexes((OlapTable) table);
-        if (isPartialUpdate) {
-            state.setSchemaForPartialUpdate((OlapTable) table);
-        }
     }
 
     /**
