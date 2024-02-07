@@ -176,9 +176,14 @@ void BlockReader::_init_agg_state(const ReaderParams& read_params) {
     _stored_has_variable_length_tag.resize(_stored_data_columns.size());
 
     auto& tablet_schema = *_tablet_schema;
+    bool all_column_replace_if_not_null = true;
     for (auto idx : _agg_columns_idx) {
         auto column = tablet_schema.column(
                 read_params.origin_return_columns->at(_return_columns_loc[idx]));
+        if (column.aggregation() !=
+            FieldAggregationMethod::OLAP_FIELD_AGGREGATION_REPLACE_IF_NOT_NULL) {
+            all_column_replace_if_not_null = false;
+        }
         AggregateFunctionPtr function =
                 column.get_aggregate_function(vectorized::AGG_READER_SUFFIX);
 
@@ -210,6 +215,8 @@ void BlockReader::_init_agg_state(const ReaderParams& read_params) {
                          ->get_nested_column_ptr()
                          ->is_column_map());
     }
+    _is_all_column_replace_if_not_null = all_column_replace_if_not_null;
+    _agg_offsets.resize(_agg_columns_idx.size(), -1);
 }
 
 Status BlockReader::init(const ReaderParams& read_params) {
@@ -524,15 +531,38 @@ void BlockReader::_update_agg_value(MutableColumns& columns, int begin, int end,
         AggregateDataPtr place = _agg_places[i];
         auto* column_ptr = _stored_data_columns[idx].get();
 
+        int offset = _agg_offsets[idx];
         if (begin <= end) {
-            function->add_batch_range(begin, end, place, const_cast<const IColumn**>(&column_ptr),
-                                      &_arena, _stored_has_null_tag[idx]);
+            if (!_is_all_column_replace_if_not_null) {
+                function->add_batch_range(begin, end, place,
+                                          const_cast<const IColumn**>(&column_ptr), &_arena,
+                                          _stored_has_null_tag[idx]);
+            } else {
+                for (int j = begin; j < end; j++) {
+                    if (column_ptr->is_null_at(j) || offset >= 0) {
+                        continue;
+                    }
+                    // record the fist value not null
+                    offset = j;
+                }
+            }
         }
 
         if (is_close) {
-            function->insert_result_into(place, *columns[_return_columns_loc[idx]]);
-            // reset aggregate data
-            function->reset(place);
+            if (!_is_all_column_replace_if_not_null) {
+                function->insert_result_into(place, *columns[_return_columns_loc[idx]]);
+                // reset aggregate data
+                function->reset(place);
+            } else {
+                if (offset >= 0) {
+                    columns[_return_columns_loc[idx]]->insert_from(*column_ptr,offset);
+                } else {
+                    columns[_return_columns_loc[idx]]->insert_default();
+                }
+                _agg_offsets[idx] = -1;
+            }
+        } else {
+            _agg_offsets[idx] = offset;
         }
     }
     if (is_close) {

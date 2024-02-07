@@ -119,6 +119,9 @@ private:
 
     bool _is_rowsets_overlapping = true;
 
+    bool _is_all_column_replace_if_not_null = false;
+    std::vector<int> _agg_offsets;
+
     Arena _arena;
 };
 
