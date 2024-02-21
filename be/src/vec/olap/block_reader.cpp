@@ -539,7 +539,7 @@ void BlockReader::_update_agg_value(MutableColumns& columns, int begin, int end,
                                           _stored_has_null_tag[idx]);
             } else {
                 for (int j = begin; j <= end; j++) {
-                    if (column_ptr->is_null_at(j) || offset >= 0) {
+                    if (offset >= 0 || column_ptr->is_null_at(j)) {
                         continue;
                     }
                     // record the fist value not null
