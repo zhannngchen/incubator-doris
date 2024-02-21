@@ -538,7 +538,7 @@ void BlockReader::_update_agg_value(MutableColumns& columns, int begin, int end,
                                           const_cast<const IColumn**>(&column_ptr), &_arena,
                                           _stored_has_null_tag[idx]);
             } else {
-                for (int j = begin; j < end; j++) {
+                for (int j = begin; j <= end; j++) {
                     if (column_ptr->is_null_at(j) || offset >= 0) {
                         continue;
                     }
