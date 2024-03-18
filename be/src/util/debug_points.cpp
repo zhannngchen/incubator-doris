@@ -97,7 +97,7 @@ void DebugPoints::clear() {
 
 void DebugPoints::print_all() {
     if (!config::enable_debug_points) {
-        return nullptr;
+        return;
     }
     auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
     std::ostringstream oss;
