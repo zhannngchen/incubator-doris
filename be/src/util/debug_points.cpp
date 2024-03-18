@@ -95,4 +95,18 @@ void DebugPoints::clear() {
     LOG(INFO) << "clear debug points";
 }
 
+void DebugPoints::print_all() {
+    if (!config::enable_debug_points) {
+        return nullptr;
+    }
+    auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
+    std::ostringstream oss;
+    oss << "{";
+    for (auto it = map_ptr->begin(); it != map_ptr->end(); it++) {
+        oss << it->first << ",";
+    }
+    oss << "}";
+    LOG(INFO) << "all debug points: " << oss.str();
+}
+
 } // namespace doris

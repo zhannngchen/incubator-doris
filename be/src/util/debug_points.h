@@ -120,6 +120,8 @@ public:
         add_with_params(name, {{"value", fmt::format("{}", value)}});
     }
 
+    void print_all();
+
     static DebugPoints* instance();
 
 private:

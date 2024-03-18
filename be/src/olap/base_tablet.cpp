@@ -1380,6 +1380,9 @@ Status BaseTablet::check_rowid_conversion(
 Status BaseTablet::update_delete_bitmap_without_lock(
         const BaseTabletSPtr& self, const RowsetSharedPtr& rowset,
         const std::vector<RowsetSharedPtr>* specified_base_rowsets) {
+    LOG(INFO) << "inside update_delete_bitmap_without_lock()";
+    DebugPoints::instance()->print_all();
+
     DBUG_EXECUTE_IF("BaseTablet.update_delete_bitmap_without_lock.random_failed", {
         auto rnd = rand() % 100;
         auto percent = dp->param("percent", 0.1);
