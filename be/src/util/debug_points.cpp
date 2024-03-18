@@ -66,6 +66,7 @@ void DebugPoints::add(const std::string& name, std::shared_ptr<DebugPoint> debug
     oss << "}";
 
     LOG(INFO) << "add debug point: name=" << name << ", params=" << oss.str();
+    print_all();
 }
 
 void DebugPoints::remove(const std::string& name) {
