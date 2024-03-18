@@ -88,6 +88,8 @@ void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
             break;
         }
     }
+    LOG(INFO) << "debug points updated, size before: " << old_points->size()
+              << ", size after: " << _debug_points->size();
 }
 
 void DebugPoints::clear() {
