@@ -89,7 +89,9 @@ void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
         }
     }
     LOG(INFO) << "debug points updated, size before: " << old_points->size()
-              << ", size after: " << _debug_points->size();
+              << ", size after: " << _debug_points->size()
+              << ", address of shared_ptr: " << &_debug_points
+              << ", address of map: " << _debug_points.get();
 }
 
 void DebugPoints::clear() {
@@ -109,7 +111,9 @@ void DebugPoints::print_all() {
         oss << it->first << ",";
     }
     oss << "}";
-    LOG(INFO) << "all debug points: " << oss.str();
+    LOG(INFO) << "all debug points: " << oss.str() << ", address of shared_ptr: " << &_debug_points
+              << ", address of map: " << _debug_points.get()
+              << ", address of map in cloned ptr: " << map_ptr.get();
 }
 
 } // namespace doris
