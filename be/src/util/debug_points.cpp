@@ -78,6 +78,11 @@ void DebugPoints::remove(const std::string& name) {
 
 void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
     auto old_points = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
+    LOG(INFO) << "debug points before updated"
+              << ", size: " << _debug_points->size()
+              << ", address of shared_ptr: " << &_debug_points
+              << ", address of map: " << _debug_points.get()
+              << ", address of map in old_points: " << old_points.get();
     while (true) {
         auto new_points = std::make_shared<DebugPointMap>(*old_points);
         handler(*new_points);
@@ -88,8 +93,8 @@ void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
             break;
         }
     }
-    LOG(INFO) << "debug points updated, size before: " << old_points->size()
-              << ", size after: " << _debug_points->size()
+    LOG(INFO) << "debug points updated"
+              << ", size: " << _debug_points->size()
               << ", address of shared_ptr: " << &_debug_points
               << ", address of map: " << _debug_points.get();
 }
