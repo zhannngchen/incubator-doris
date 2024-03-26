@@ -37,7 +37,7 @@ std::shared_ptr<DebugPoint> DebugPoints::get_debug_point(const std::string& name
     if (!config::enable_debug_points) {
         return nullptr;
     }
-    auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
+    auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_seq_cst);
     auto it = map_ptr->find(name);
     if (it == map_ptr->end()) {
         return nullptr;
@@ -46,7 +46,7 @@ std::shared_ptr<DebugPoint> DebugPoints::get_debug_point(const std::string& name
     auto debug_point = it->second;
     if ((debug_point->expire_ms > 0 && MonotonicMillis() >= debug_point->expire_ms) ||
         (debug_point->execute_limit > 0 &&
-         debug_point->execute_num.fetch_add(1, std::memory_order_relaxed) >=
+         debug_point->execute_num.fetch_add(1, std::memory_order_seq_cst) >=
                  debug_point->execute_limit)) {
         remove(name);
         return nullptr;
@@ -77,7 +77,7 @@ void DebugPoints::remove(const std::string& name) {
 }
 
 void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
-    auto old_points = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
+    auto old_points = std::atomic_load_explicit(&_debug_points, std::memory_order_seq_cst);
     LOG(INFO) << "debug points before updated"
               << ", size: " << _debug_points->size()
               << ", address of shared_ptr: " << &_debug_points
@@ -89,7 +89,7 @@ void DebugPoints::update(std::function<void(DebugPointMap&)>&& handler) {
         if (std::atomic_compare_exchange_strong_explicit(
                     &_debug_points, &old_points,
                     std::static_pointer_cast<const DebugPointMap>(new_points),
-                    std::memory_order_relaxed, std::memory_order_relaxed)) {
+                    std::memory_order_seq_cst, std::memory_order_seq_cst)) {
             break;
         }
     }
@@ -109,7 +109,7 @@ void DebugPoints::print_all() {
     if (!config::enable_debug_points) {
         return;
     }
-    auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_relaxed);
+    auto map_ptr = std::atomic_load_explicit(&_debug_points, std::memory_order_seq_cst);
     std::ostringstream oss;
     oss << "{";
     for (auto it = map_ptr->begin(); it != map_ptr->end(); it++) {
