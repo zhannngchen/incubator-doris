@@ -826,6 +826,9 @@ Status Compaction::modify_rowsets(const Merger::Statistics* stats) {
                         _tablet->table_id());
                 DCHECK(false) << err_msg;
                 LOG(WARNING) << err_msg;
+                if (config::enable_merge_on_write_correctness_check) {
+                    return Status::Error<ErrorCode::INTERNAL_ERROR, false>(err_msg);
+                }
             }
         }
 
