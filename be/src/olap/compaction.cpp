@@ -423,7 +423,8 @@ Status Compaction::do_compaction_impl(int64_t permits) {
         if (!allow_delete_in_cumu_compaction()) {
             missed_rows_size = missed_rows.size();
             if (compaction_type() == ReaderType::READER_CUMULATIVE_COMPACTION &&
-                stats.merged_rows != missed_rows_size) {
+                stats.merged_rows != missed_rows_size &&
+                _tablet->tablet_state() == TABLET_RUNNING) {
                 std::string err_msg = fmt::format(
                         "cumulative compaction: the merged rows({}) is not equal to missed "
                         "rows({}) in rowid conversion, tablet_id: {}, table_id:{}",
@@ -431,6 +432,10 @@ Status Compaction::do_compaction_impl(int64_t permits) {
                         _tablet->table_id());
                 DCHECK(false) << err_msg;
                 LOG(WARNING) << err_msg;
+                if (config::enable_merge_on_write_correctness_check) {
+                    config::disable_auto_compaction = true;
+                    return Status::Error<ErrorCode::INTERNAL_ERROR, false>(err_msg);
+                }
             }
         }
 
@@ -818,7 +823,8 @@ Status Compaction::modify_rowsets(const Merger::Statistics* stats) {
         if (!allow_delete_in_cumu_compaction()) {
             missed_rows_size = missed_rows.size();
             if (compaction_type() == ReaderType::READER_CUMULATIVE_COMPACTION && stats != nullptr &&
-                stats->merged_rows != missed_rows_size) {
+                stats->merged_rows != missed_rows_size &&
+                _tablet->tablet_state() == TABLET_RUNNING) {
                 std::string err_msg = fmt::format(
                         "cumulative compaction: the merged rows({}) is not equal to missed "
                         "rows({}) in rowid conversion, tablet_id: {}, table_id:{}",
