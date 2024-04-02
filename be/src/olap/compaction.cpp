@@ -827,6 +827,7 @@ Status Compaction::modify_rowsets(const Merger::Statistics* stats) {
                 DCHECK(false) << err_msg;
                 LOG(WARNING) << err_msg;
                 if (config::enable_merge_on_write_correctness_check) {
+                    config::disable_auto_compaction = true;
                     return Status::Error<ErrorCode::INTERNAL_ERROR, false>(err_msg);
                 }
             }
