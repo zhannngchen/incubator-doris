@@ -254,6 +254,7 @@ public class Replica implements Writable {
     }
 
     public boolean setBad(boolean bad) {
+        LOG.info("replica {} is set to bad", getId());
         if (this.bad == bad) {
             return false;
         }
@@ -560,6 +561,8 @@ public class Replica implements Writable {
         strBuffer.append(schemaHash);
         strBuffer.append(", state=");
         strBuffer.append(state.name());
+        strBuffer.append(", isBad=");
+        strBuffer.append(isBad());
         strBuffer.append("]");
         return strBuffer.toString();
     }

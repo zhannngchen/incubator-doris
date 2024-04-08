@@ -582,6 +582,9 @@ public class SchemaChangeJobV2 extends AlterJobV2 {
                                     shadowTablet.getId(), replicas, jobId);
                             throw new AlterCancelException(
                                     "shadow tablet " + shadowTablet.getId() + " has few healthy replicas");
+                        } else {
+                            LOG.info("schema change job {} succeed, healthyReplicaNum: {}, replicas: {}", jobId,
+                                    healthyReplicaNum, replicas);
                         }
                     } // end for tablets
                 }
