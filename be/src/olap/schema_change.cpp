@@ -805,7 +805,8 @@ Status SchemaChangeHandler::_do_process_alter_tablet_v2(const TAlterTabletReqV2&
             }
             // before calculating version_to_be_changed,
             // remove all data from new tablet, prevent to rewrite data(those double pushed when wait)
-            LOG(INFO) << "begin to remove all data from new tablet to prevent rewrite."
+            LOG(INFO) << "begin to remove all data before version " << max_rowset->end_version()
+                      << " from new tablet to prevent rewrite."
                       << " new_tablet=" << new_tablet->full_name();
             std::vector<RowsetSharedPtr> rowsets_to_delete;
             std::vector<std::pair<Version, RowsetSharedPtr>> version_rowsets;
@@ -940,6 +941,11 @@ Status SchemaChangeHandler::_do_process_alter_tablet_v2(const TAlterTabletReqV2&
             std::lock_guard<std::shared_mutex> wrlock(_mutex);
             _tablet_ids_in_converting.insert(new_tablet->tablet_id());
         }
+
+        LOG(INFO) << "begin to convert historical rowsets for new_tablet from base_tablet."
+                  << " base_tablet=" << sc_params.base_tablet->full_name()
+                  << ", new_tablet=" << sc_params.new_tablet->full_name()
+                  << ", on version : " << end_version;
         int64_t real_alter_version = 0;
         res = _convert_historical_rowsets(sc_params, &real_alter_version);
         DCHECK_GE(real_alter_version, request.alter_version);
@@ -1010,10 +1016,6 @@ Status SchemaChangeHandler::_get_versions_to_be_changed(
 // converted from a base tablet, only used for the mow table now.
 Status SchemaChangeHandler::_convert_historical_rowsets(const SchemaChangeParams& sc_params,
                                                         int64_t* real_alter_version) {
-    LOG(INFO) << "begin to convert historical rowsets for new_tablet from base_tablet."
-              << " base_tablet=" << sc_params.base_tablet->full_name()
-              << ", new_tablet=" << sc_params.new_tablet->full_name();
-
     // find end version
     int32_t end_version = -1;
     for (size_t i = 0; i < sc_params.ref_rowset_readers.size(); ++i) {
@@ -1071,7 +1073,7 @@ Status SchemaChangeHandler::_convert_historical_rowsets(const SchemaChangeParams
     // c.Convert historical data
     bool have_failure_rowset = false;
     for (auto& rs_reader : sc_params.ref_rowset_readers) {
-        VLOG_TRACE << "begin to convert a history rowset. version=" << rs_reader->version().first
+        LOG(INFO) << "begin to convert a history rowset. version=" << rs_reader->version().first
                    << "-" << rs_reader->version().second;
 
         // set status for monitor
