@@ -156,8 +156,9 @@ public class DeleteStmt extends DdlStmt {
         for (Column column : targetTable.getColumns()) {
             LOG.info(
                     "DEBUG: constructInsertStmt(), isMow {}, Column name {}, is visiable {}, isAllowNull{}, "
-                            + "hasDefaultValue{}", isMow, column.getName(), column.isVisible(), column.isAllowNull(),
-                    column.hasDefaultValue());
+                            + "hasDefaultValue {}, default value: {}", isMow, column.getName(), column.isVisible(),
+                    column.isAllowNull(),
+                    column.hasDefaultValue(), column.hasDefaultValue() ? column.getDefaultValue() : "N/A");
             Expr expr;
             // in mow, we can use partial update so we only need key column and delete sign
             if (!column.isVisible() && column.getName().equalsIgnoreCase(Column.DELETE_SIGN)) {
