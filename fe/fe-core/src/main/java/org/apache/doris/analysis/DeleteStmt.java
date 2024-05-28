@@ -154,6 +154,10 @@ public class DeleteStmt extends DdlStmt {
         }
         boolean isMow = ((OlapTable) targetTable).getEnableUniqueKeyMergeOnWrite();
         for (Column column : targetTable.getColumns()) {
+            LOG.info(
+                    "DEBUG: constructInsertStmt(), isMow {}, Column name {}, is visiable {}, isAllowNull{}, "
+                            + "hasDefaultValue{}", isMow, column.getName(), column.isVisible(), column.isAllowNull(),
+                    column.hasDefaultValue());
             Expr expr;
             // in mow, we can use partial update so we only need key column and delete sign
             if (!column.isVisible() && column.getName().equalsIgnoreCase(Column.DELETE_SIGN)) {
