@@ -967,6 +967,7 @@ public class NativeInsertStmt extends InsertStmt {
         for (int i = 0; i < numCols; ++i) {
             Column col = targetColumns.get(i);
             exprByName.put(col.getName(), selectList.get(i));
+            LOG.info("DEBUG: targetColumns[{}], name:{}", i, col.getName());
         }
 
         List<Pair<String, Expr>> resultExprByName = Lists.newArrayList();

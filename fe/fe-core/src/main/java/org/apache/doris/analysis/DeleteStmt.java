@@ -206,7 +206,6 @@ public class DeleteStmt extends DdlStmt {
                 null,
                 isPartialUpdate,
                 NativeInsertStmt.InsertType.DELETE);
-        LOG.info("DEBUG: {}", insertStmt.toSql());
         ((NativeInsertStmt) insertStmt).setIsFromDeleteOrUpdateStmt(true);
     }
 
