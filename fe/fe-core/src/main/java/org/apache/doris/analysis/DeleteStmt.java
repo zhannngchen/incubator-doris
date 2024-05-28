@@ -47,6 +47,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -54,6 +56,7 @@ import java.util.Map;
 
 public class DeleteStmt extends DdlStmt {
 
+    private static final Logger LOG = LogManager.getLogger(DeleteStmt.class);
     private static final List<ExprRewriteRule> EXPR_NORMALIZE_RULES = ImmutableList.of(
             BetweenToCompoundRule.INSTANCE
     );
@@ -203,6 +206,7 @@ public class DeleteStmt extends DdlStmt {
                 null,
                 isPartialUpdate,
                 NativeInsertStmt.InsertType.DELETE);
+        LOG.info("DEBUG: {}", insertStmt.toSql());
         ((NativeInsertStmt) insertStmt).setIsFromDeleteOrUpdateStmt(true);
     }
 
