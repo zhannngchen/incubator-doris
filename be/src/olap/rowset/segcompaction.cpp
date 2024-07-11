@@ -82,14 +82,7 @@ Status SegcompactionWorker::_get_segcompaction_reader(
     read_options.tablet_schema = ctx.tablet_schema;
     std::vector<std::unique_ptr<RowwiseIterator>> seg_iterators;
     for (auto& seg_ptr : *segments) {
-        std::unique_ptr<RowwiseIterator> iter;
-        auto s = seg_ptr->new_iterator(schema, read_options, &iter);
         auto seg_id = seg_ptr->id();
-        if (!s.ok()) {
-            return Status::Error<INIT_FAILED>("failed to create iterator[{}]: {}", seg_id,
-                                              s.to_string());
-        }
-        seg_iterators.push_back(std::move(iter));
         // if schema has sequence col, the mow table might mark some data in current segments as
         // deleted, segcompaction MUST process these delete bitmaps
         if (schema->has_sequence_col()) {
@@ -100,8 +93,22 @@ Status SegcompactionWorker::_get_segcompaction_reader(
                 read_options.delete_bitmap.emplace(seg_id, std::move(shared_bitmap_ptr));
                 LOG(INFO) << "emplace back delete bitmap for segcompaction, rowset_id: "
                           << ctx.rowset_id << ", seg_id: " << seg_id;
+            } else {
+                LOG(INFO) << "no delete bitmap for segcompaction, rowset_id: "
+                          << ctx.rowset_id << ", seg_id: " << seg_id;
             }
+        } else {
+            LOG(INFO) << "no seq column for segcompaction, rowset_id: "
+                      << ctx.rowset_id << ", seg_id: " << seg_id;
         }
+        std::unique_ptr<RowwiseIterator> iter;
+        auto s = seg_ptr->new_iterator(schema, read_options, &iter);
+        if (!s.ok()) {
+            return Status::Error<INIT_FAILED>("failed to create iterator[{}]: {}", seg_id,
+                                              s.to_string());
+        }
+        seg_iterators.push_back(std::move(iter));
+
     }
 
     *reader = std::make_unique<vectorized::VerticalBlockReader>(&row_sources_buf);
