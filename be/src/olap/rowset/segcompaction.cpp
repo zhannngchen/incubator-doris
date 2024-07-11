@@ -101,6 +101,11 @@ Status SegcompactionWorker::_get_segcompaction_reader(
     reader_params.tablet = tablet;
     reader_params.return_columns = return_columns;
     reader_params.is_key_column_group = is_key;
+    // if schema has sequence col, the mow table might mark some data in current segments as
+    // deleted, segcompaction MUST process these delete bitmaps
+    if (schema->has_sequence_col()) {
+        reader_params.delete_bitmap = ctx.mow_context->delete_bitmap.get();
+    }
     return (*reader)->init(reader_params, nullptr);
 }
 
