@@ -84,11 +84,20 @@ Status SegcompactionWorker::_get_segcompaction_reader(
     for (auto& seg_ptr : *segments) {
         std::unique_ptr<RowwiseIterator> iter;
         auto s = seg_ptr->new_iterator(schema, read_options, &iter);
+        auto seg_id = seg_ptr->id();
         if (!s.ok()) {
-            return Status::Error<INIT_FAILED>("failed to create iterator[{}]: {}", seg_ptr->id(),
+            return Status::Error<INIT_FAILED>("failed to create iterator[{}]: {}", seg_id,
                                               s.to_string());
         }
         seg_iterators.push_back(std::move(iter));
+        // if schema has sequence col, the mow table might mark some data in current segments as
+        // deleted, segcompaction MUST process these delete bitmaps
+        if (schema->has_sequence_col()) {
+            auto bmk = std::make_tuple(ctx.rowset_id, seg_id, DeleteBitmap::TEMP_VERSION_COMMON);
+            auto bitmap_ptr =
+                    std::make_shared<roaring::Roaring>(*(ctx.mow_context->delete_bitmap->get(bmk)));
+            read_options.delete_bitmap.emplace(seg_id, std::move(bitmap_ptr));
+        }
     }
 
     *reader = std::make_unique<vectorized::VerticalBlockReader>(&row_sources_buf);
@@ -101,11 +110,6 @@ Status SegcompactionWorker::_get_segcompaction_reader(
     reader_params.tablet = tablet;
     reader_params.return_columns = return_columns;
     reader_params.is_key_column_group = is_key;
-    // if schema has sequence col, the mow table might mark some data in current segments as
-    // deleted, segcompaction MUST process these delete bitmaps
-    if (schema->has_sequence_col()) {
-        reader_params.delete_bitmap = ctx.mow_context->delete_bitmap.get();
-    }
     return (*reader)->init(reader_params, nullptr);
 }
 
