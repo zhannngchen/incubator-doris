@@ -85,7 +85,7 @@ Status SegcompactionWorker::_get_segcompaction_reader(
         auto seg_id = seg_ptr->id();
         // if schema has sequence col, the mow table might mark some data in current segments as
         // deleted, segcompaction MUST process these delete bitmaps
-        if (schema->has_sequence_col()) {
+        if (tablet->tablet_schema()->has_sequence_col() && is_key) {
             auto bmk = std::make_tuple(ctx.rowset_id, seg_id, DeleteBitmap::TEMP_VERSION_COMMON);
             auto bitmap_ptr = ctx.mow_context->delete_bitmap->get(bmk);
             if (bitmap_ptr != nullptr) {
