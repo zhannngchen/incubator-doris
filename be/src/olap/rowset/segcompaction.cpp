@@ -94,9 +94,13 @@ Status SegcompactionWorker::_get_segcompaction_reader(
         // deleted, segcompaction MUST process these delete bitmaps
         if (schema->has_sequence_col()) {
             auto bmk = std::make_tuple(ctx.rowset_id, seg_id, DeleteBitmap::TEMP_VERSION_COMMON);
-            auto bitmap_ptr =
-                    std::make_shared<roaring::Roaring>(*(ctx.mow_context->delete_bitmap->get(bmk)));
-            read_options.delete_bitmap.emplace(seg_id, std::move(bitmap_ptr));
+            auto bitmap_ptr = ctx.mow_context->delete_bitmap->get(bmk);
+            if (bitmap_ptr != nullptr) {
+                auto shared_bitmap_ptr = std::make_shared<roaring::Roaring>(*(bitmap_ptr));
+                read_options.delete_bitmap.emplace(seg_id, std::move(shared_bitmap_ptr));
+                LOG(INFO) << "emplace back delete bitmap for segcompaction, rowset_id: "
+                          << ctx.rowset_id << ", seg_id: " << seg_id;
+            }
         }
     }
 
