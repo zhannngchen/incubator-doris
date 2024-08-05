@@ -90,7 +90,8 @@ Status CloudTxnDeleteBitmapCache::get_delete_bitmap(
     }
     std::string key_str = fmt::format("{}/{}", transaction_id, tablet_id);
     CacheKey key(key_str);
-    Cache::Handle* handle = lookup(key);
+    // Cache::Handle* handle = lookup(key);
+    Cache::Handle* handle = nullptr;
 
     DeleteBitmapCacheValue* val =
             handle == nullptr ? nullptr : reinterpret_cast<DeleteBitmapCacheValue*>(value(handle));

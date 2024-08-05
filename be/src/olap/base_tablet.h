@@ -164,13 +164,13 @@ public:
                                      const std::vector<RowsetSharedPtr>& specified_rowsets,
                                      DeleteBitmapPtr delete_bitmap, int64_t version,
                                      CalcDeleteBitmapToken* token,
-                                     RowsetWriter* rowset_writer = nullptr);
+                                     RowsetWriter* rowset_writer = nullptr, int sleepms=0);
 
     Status calc_segment_delete_bitmap(RowsetSharedPtr rowset,
                                       const segment_v2::SegmentSharedPtr& seg,
                                       const std::vector<RowsetSharedPtr>& specified_rowsets,
                                       DeleteBitmapPtr delete_bitmap, int64_t end_version,
-                                      RowsetWriter* rowset_writer);
+                                      RowsetWriter* rowset_writer, int sleepms=0);
 
     Status calc_delete_bitmap_between_segments(
             RowsetSharedPtr rowset, const std::vector<segment_v2::SegmentSharedPtr>& segments,

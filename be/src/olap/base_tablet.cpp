@@ -583,7 +583,8 @@ Status BaseTablet::calc_delete_bitmap(const BaseTabletSPtr& tablet, RowsetShared
                                       const std::vector<segment_v2::SegmentSharedPtr>& segments,
                                       const std::vector<RowsetSharedPtr>& specified_rowsets,
                                       DeleteBitmapPtr delete_bitmap, int64_t end_version,
-                                      CalcDeleteBitmapToken* token, RowsetWriter* rowset_writer) {
+                                      CalcDeleteBitmapToken* token, RowsetWriter* rowset_writer,
+                                      int sleepms) {
     auto rowset_id = rowset->rowset_id();
     if (specified_rowsets.empty() || segments.empty()) {
         LOG(INFO) << "skip to construct delete bitmap tablet: " << tablet->tablet_id()
@@ -596,7 +597,7 @@ Status BaseTablet::calc_delete_bitmap(const BaseTabletSPtr& tablet, RowsetShared
         const auto& seg = segment;
         if (token != nullptr) {
             RETURN_IF_ERROR(token->submit(tablet, rowset, seg, specified_rowsets, end_version,
-                                          delete_bitmap, rowset_writer));
+                                          delete_bitmap, rowset_writer, sleepms));
         } else {
             RETURN_IF_ERROR(tablet->calc_segment_delete_bitmap(
                     rowset, segment, specified_rowsets, delete_bitmap, end_version, rowset_writer));
@@ -610,7 +611,7 @@ Status BaseTablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
                                               const segment_v2::SegmentSharedPtr& seg,
                                               const std::vector<RowsetSharedPtr>& specified_rowsets,
                                               DeleteBitmapPtr delete_bitmap, int64_t end_version,
-                                              RowsetWriter* rowset_writer) {
+                                              RowsetWriter* rowset_writer, int sleepms) {
     OlapStopWatch watch;
     auto rowset_id = rowset->rowset_id();
     Version dummy_version(end_version + 1, end_version + 1);
@@ -794,6 +795,10 @@ Status BaseTablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
         add_sentinel_mark_to_delete_bitmap(delete_bitmap.get(), rowsetids);
     }
 
+    if (sleepms > 0) {
+        sleep(sleepms / 1000);
+    }
+
     if (pos > 0) {
         auto partial_update_info = rowset_writer->get_partial_update_info();
         DCHECK(partial_update_info);
@@ -820,7 +825,7 @@ Status BaseTablet::calc_segment_delete_bitmap(RowsetSharedPtr rowset,
               << " seg_id: " << seg->id() << " dummy_version: " << end_version + 1
               << " rows: " << seg->num_rows() << " conflict rows: " << conflict_rows
               << " bitmap num: " << delete_bitmap->delete_bitmap.size()
-              << " cost: " << watch.get_elapse_time_us() << "(us)";
+              << " cost: " << watch.get_elapse_time_us() << "(us)" << ", sleep: " << sleepms;
     return Status::OK();
 }
 
@@ -1279,13 +1284,13 @@ Status BaseTablet::update_delete_bitmap(const BaseTabletSPtr& self, TabletTxnInf
     // Otherwise, it will be submitted to the thread pool for calculation.
     if (segments.size() <= 1) {
         RETURN_IF_ERROR(calc_delete_bitmap(self, rowset, segments, specified_rowsets, delete_bitmap,
-                                           cur_version - 1, nullptr, transient_rs_writer.get()));
+                                           cur_version - 1, nullptr, transient_rs_writer.get(), 1000));
 
     } else {
         auto token = self->calc_delete_bitmap_executor()->create_token();
         RETURN_IF_ERROR(calc_delete_bitmap(self, rowset, segments, specified_rowsets, delete_bitmap,
                                            cur_version - 1, token.get(),
-                                           transient_rs_writer.get()));
+                                           transient_rs_writer.get(), 1000));
         RETURN_IF_ERROR(token->wait());
     }
 
