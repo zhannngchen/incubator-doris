@@ -1285,13 +1285,13 @@ Status BaseTablet::update_delete_bitmap(const BaseTabletSPtr& self, TabletTxnInf
     // Otherwise, it will be submitted to the thread pool for calculation.
     if (segments.size() <= 1) {
         RETURN_IF_ERROR(calc_delete_bitmap(self, rowset, segments, specified_rowsets, delete_bitmap,
-                                           cur_version - 1, nullptr, transient_rs_writer.get(), 1000));
+                                           cur_version - 1, nullptr, transient_rs_writer.get(), 2000));
 
     } else {
         auto token = self->calc_delete_bitmap_executor()->create_token();
         RETURN_IF_ERROR(calc_delete_bitmap(self, rowset, segments, specified_rowsets, delete_bitmap,
                                            cur_version - 1, token.get(),
-                                           transient_rs_writer.get(), 1000));
+                                           transient_rs_writer.get(), 2000));
         RETURN_IF_ERROR(token->wait());
     }
 
