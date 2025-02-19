@@ -1042,4 +1042,5 @@ TEST_F(TestDeltaWriter, vec_sequence_col_concurrent_write) {
     res = engine_ref->tablet_manager()->drop_tablet(request.tablet_id, request.replica_id, false);
     ASSERT_TRUE(res.ok());
 }
+
 } // namespace doris

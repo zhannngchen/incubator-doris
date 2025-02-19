@@ -79,12 +79,7 @@ protected:
     std::filesystem::path _temp_dir;
 };
 
-// Test real Kerberos authentication
-// How to run:
-// KRB5_CONFIG=/to/krb5.conf \
-// KRB5_TEST_PRINCIPAL=your_principal \
-// KRB5_TEST_KEYTAB=/to/hdfs.keytab \
-// sh run-be-ut.sh --run --filter=KerberosTicketCacheAuthTest.*
+
 TEST_F(KerberosTicketCacheAuthTest, TestRealAuthentication) {
     // If SetUp() skipped the test, we should skip here too
     if (testing::Test::HasFatalFailure()) {

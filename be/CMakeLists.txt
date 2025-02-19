@@ -177,6 +177,7 @@ message(STATUS "build azure: ${BUILD_AZURE}")
 if(BUILD_AZURE STREQUAL "ON")
     add_definitions(-DUSE_AZURE)
 endif()
+message(STATUS "USE_AZURE: ${USE_AZURE}")
 
 
 set(GPERFTOOLS_HOME "${THIRDPARTY_DIR}/gperftools")
@@ -277,7 +278,6 @@ add_compile_options(-g
                     $<$<COMPILE_LANGUAGE:CXX>:-Wnon-virtual-dtor>)
 
 add_compile_options(-Wno-unused-parameter
-                    $<$<COMPILE_LANGUAGE:CXX>:-Wno-incompatible-pointer-types>
                     -Wno-deprecated-declarations
                     -Wno-sign-compare)
 
