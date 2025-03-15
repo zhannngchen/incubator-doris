@@ -1067,5 +1067,130 @@ TEST_F(VerticalCompactionTest, TestAggKeyVerticalMerge) {
     }
 }
 
+TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMergeWithDelete) {
+    auto num_input_rowset = 2;
+    auto num_segments = 2;
+    auto rows_per_segment = 2 * 100 * 1024;
+    SegmentsOverlapPB overlap = NONOVERLAPPING;
+    std::vector<std::vector<std::vector<std::tuple<int64_t, int64_t>>>> input_data;
+    generate_input_data(num_input_rowset, num_segments, rows_per_segment, overlap, input_data);
+    for (auto rs_id = 0; rs_id < input_data.size(); rs_id++) {
+        for (auto s_id = 0; s_id < input_data[rs_id].size(); s_id++) {
+            for (auto row_id = 0; row_id < input_data[rs_id][s_id].size(); row_id++) {
+                LOG(INFO) << "input data: " << std::get<0>(input_data[rs_id][s_id][row_id]) << " "
+                          << std::get<1>(input_data[rs_id][s_id][row_id]);
+            }
+        }
+    }
+
+    TabletSchemaSPtr tablet_schema = create_schema(UNIQUE_KEYS);
+    // create input rowset
+    vector<RowsetSharedPtr> input_rowsets;
+    SegmentsOverlapPB new_overlap = overlap;
+    for (auto i = 0; i < num_input_rowset; i++) {
+        if (overlap == OVERLAP_UNKNOWN) {
+            if (i == 0) {
+                new_overlap = NONOVERLAPPING;
+            } else {
+                new_overlap = OVERLAPPING;
+            }
+        }
+        RowsetSharedPtr rowset = create_rowset(tablet_schema, new_overlap, input_data[i], i, true);
+        EXPECT_GT(rowset->num_rows(), 0);
+        input_rowsets.push_back(rowset);
+    }
+
+    TabletSharedPtr tablet = create_tablet(*tablet_schema, true);
+    // delete data with key < 100
+    std::vector<TCondition> conditions;
+    TCondition condition;
+    condition.column_name = tablet->tablet_schema()->column(0).name();
+    condition.condition_op = "<";
+    condition.condition_values.clear();
+    condition.condition_values.push_back("100");
+    conditions.push_back(condition);
+    DeletePredicatePB del_pred;
+    auto st = DeleteHandler::generate_delete_predicate(*tablet->tablet_schema(), conditions,
+                                                       &del_pred);
+    ASSERT_TRUE(st.ok()) << st;
+    input_rowsets.push_back(create_delete_predicate(tablet->tablet_schema(), std::move(del_pred),
+                                                    num_input_rowset));
+
+    // create input rowset reader
+    DeleteBitmapPtr bitmap = std::make_shared<DeleteBitmap>(tablet->tablet_id());
+    vector<RowsetReaderSharedPtr> input_rs_readers;
+    vector<RowsetSharedPtr> specified_rowsets;
+    int expedt_cardinality = 0;
+    for (auto& rowset : input_rowsets) {
+        std::vector<segment_v2::SegmentSharedPtr> segments;
+        EXPECT_TRUE(std::dynamic_pointer_cast<BetaRowset>(rowset)->load_segments(&segments).ok());
+        EXPECT_TRUE(BaseTablet::calc_delete_bitmap(tablet, rowset, segments, specified_rowsets,
+                                                   bitmap, rowset->version().second, nullptr)
+                            .ok());
+        EXPECT_EQ(bitmap->cardinality(), expedt_cardinality);
+        specified_rowsets.push_back(rowset);
+        // since all rowsets data is same, so new generated delete bitmap should equal to num rows
+        // in rowset.
+        expedt_cardinality += rowset->num_rows();
+        RowsetReaderSharedPtr rs_reader;
+        EXPECT_TRUE(rowset->create_reader(&rs_reader).ok());
+        input_rs_readers.push_back(std::move(rs_reader));
+    }
+    tablet->tablet_meta()->delete_bitmap().merge(*bitmap);
+
+    // create output rowset writer
+    auto writer_context = create_rowset_writer_context(tablet_schema, NONOVERLAPPING, 3456,
+                                                       {0, input_rowsets.back()->end_version()});
+    auto res = RowsetFactory::create_rowset_writer(*engine_ref, writer_context, true);
+    ASSERT_TRUE(res.has_value()) << res.error();
+    auto output_rs_writer = std::move(res).value();
+
+    // merge input rowset
+    Merger::Statistics stats;
+    RowIdConversion rowid_conversion;
+    stats.rowid_conversion = &rowid_conversion;
+    auto s = Merger::vertical_merge_rowsets(tablet, ReaderType::READER_BASE_COMPACTION,
+                                            *tablet_schema, input_rs_readers,
+                                            output_rs_writer.get(), 10000, num_segments, &stats);
+    EXPECT_TRUE(s.ok());
+    RowsetSharedPtr out_rowset;
+    EXPECT_EQ(Status::OK(), output_rs_writer->build(out_rowset));
+
+    // create output rowset reader
+    RowsetReaderContext reader_context;
+    reader_context.tablet_schema = tablet_schema;
+    reader_context.need_ordered_result = false;
+    std::vector<uint32_t> return_columns = {0, 1};
+    reader_context.return_columns = &return_columns;
+    RowsetReaderSharedPtr output_rs_reader;
+    LOG(INFO) << "create rowset reader in test";
+    create_and_init_rowset_reader(out_rowset.get(), reader_context, &output_rs_reader);
+
+    // read output rowset data
+    vectorized::Block output_block;
+    std::vector<std::tuple<int64_t, int64_t>> output_data;
+    do {
+        block_create(tablet_schema, &output_block);
+        s = output_rs_reader->next_block(&output_block);
+        auto columns = output_block.get_columns_with_type_and_name();
+        EXPECT_EQ(columns.size(), 2);
+        for (auto i = 0; i < output_block.rows(); i++) {
+            output_data.emplace_back(columns[0].column->get_int(i), columns[1].column->get_int(i));
+        }
+    } while (s == Status::OK());
+    EXPECT_EQ(Status::Error<END_OF_FILE>(""), s);
+    EXPECT_EQ(out_rowset->rowset_meta()->num_rows(), output_data.size());
+    EXPECT_EQ(output_data.size(), num_segments * rows_per_segment - 100);
+    // check vertical compaction result
+    for (auto id = 0; id < output_data.size(); id++) {
+        LOG(INFO) << "output data: " << std::get<0>(output_data[id]) << " "
+                  << std::get<1>(output_data[id]);
+    }
+
+    // All keys less than 1000 are deleted by delete handler
+    for (auto& item : output_data) {
+        ASSERT_GE(std::get<0>(item), 100);
+    }
+}
 } // namespace vectorized
 } // namespace doris
