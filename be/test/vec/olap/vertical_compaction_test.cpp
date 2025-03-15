@@ -688,7 +688,6 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
     DeleteBitmapPtr bitmap = std::make_shared<DeleteBitmap>(tablet->tablet_id());
     vector<RowsetReaderSharedPtr> input_rs_readers;
     vector<RowsetSharedPtr> specified_rowsets;
-    int expedt_cardinality = 0;
     for (auto& rowset : input_rowsets) {
         std::vector<segment_v2::SegmentSharedPtr> segments;
         EXPECT_TRUE(std::dynamic_pointer_cast<BetaRowset>(rowset)->load_segments(&segments).ok());
@@ -1119,7 +1118,6 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMergeWithDelete) {
     DeleteBitmapPtr bitmap = std::make_shared<DeleteBitmap>(tablet->tablet_id());
     vector<RowsetReaderSharedPtr> input_rs_readers;
     vector<RowsetSharedPtr> specified_rowsets;
-    int expedt_cardinality = 0;
     for (int i = 0; i < num_input_rowset; i++) {
         auto rowset = input_rowsets[i];
         std::vector<segment_v2::SegmentSharedPtr> segments;
