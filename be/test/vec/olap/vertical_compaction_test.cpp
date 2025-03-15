@@ -223,7 +223,8 @@ protected:
 
     RowsetSharedPtr create_rowset(
             TabletSchemaSPtr tablet_schema, const SegmentsOverlapPB& overlap,
-            std::vector<std::vector<std::tuple<int64_t, int64_t>>> rowset_data, int64_t version) {
+            std::vector<std::vector<std::tuple<int64_t, int64_t>>> rowset_data, int64_t version,
+            bool unique_mow = false) {
         if (overlap == NONOVERLAPPING) {
             for (auto i = 1; i < rowset_data.size(); i++) {
                 auto& last_seg_data = rowset_data[i - 1];
@@ -235,6 +236,7 @@ protected:
         }
         auto writer_context = create_rowset_writer_context(tablet_schema, overlap, UINT32_MAX,
                                                            {version, version});
+        writer_context.enable_unique_key_merge_on_write = unique_mow;
 
         auto res = RowsetFactory::create_rowset_writer(*engine_ref, writer_context, true);
         EXPECT_TRUE(res.has_value()) << res.error();
@@ -677,12 +679,12 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
                 new_overlap = OVERLAPPING;
             }
         }
-        RowsetSharedPtr rowset = create_rowset(tablet_schema, new_overlap, input_data[i], i);
+        RowsetSharedPtr rowset = create_rowset(tablet_schema, new_overlap, input_data[i], i, true);
         EXPECT_GT(rowset->num_rows(), 0);
         input_rowsets.push_back(rowset);
     }
     // create input rowset reader
-    TabletSharedPtr tablet = create_tablet(*tablet_schema, false);
+    TabletSharedPtr tablet = create_tablet(*tablet_schema, true);
     DeleteBitmapPtr bitmap = std::make_shared<DeleteBitmap>(tablet->tablet_id());
     vector<RowsetReaderSharedPtr> input_rs_readers;
     vector<RowsetSharedPtr> specified_rowsets;
