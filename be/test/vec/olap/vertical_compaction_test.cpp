@@ -652,7 +652,7 @@ TEST_F(VerticalCompactionTest, TestDupWithoutKeyVerticalMerge) {
 }
 
 TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
-    auto num_input_rowset = 2;
+    auto num_input_rowset = 3;
     auto num_segments = 2;
     auto rows_per_segment = 2 * 100 * 1024;
     SegmentsOverlapPB overlap = NONOVERLAPPING;
@@ -1068,7 +1068,7 @@ TEST_F(VerticalCompactionTest, TestAggKeyVerticalMerge) {
 }
 
 TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMergeWithDelete) {
-    auto num_input_rowset = 2;
+    auto num_input_rowset = 3;
     auto num_segments = 2;
     auto rows_per_segment = 2 * 100 * 1024;
     SegmentsOverlapPB overlap = NONOVERLAPPING;
@@ -1121,7 +1121,8 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMergeWithDelete) {
     vector<RowsetReaderSharedPtr> input_rs_readers;
     vector<RowsetSharedPtr> specified_rowsets;
     int expedt_cardinality = 0;
-    for (auto& rowset : input_rowsets) {
+    for (int i = 0; i < num_input_rowset; i++) {
+        auto rowset = input_rowsets[i];
         std::vector<segment_v2::SegmentSharedPtr> segments;
         EXPECT_TRUE(std::dynamic_pointer_cast<BetaRowset>(rowset)->load_segments(&segments).ok());
         EXPECT_TRUE(BaseTablet::calc_delete_bitmap(tablet, rowset, segments, specified_rowsets,
