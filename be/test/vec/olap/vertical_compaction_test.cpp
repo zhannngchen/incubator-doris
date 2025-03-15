@@ -678,15 +678,31 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
             }
         }
         RowsetSharedPtr rowset = create_rowset(tablet_schema, new_overlap, input_data[i], i);
+        EXPECT_GT(rowset->num_rows(), 0);
         input_rowsets.push_back(rowset);
     }
     // create input rowset reader
+    TabletSharedPtr tablet = create_tablet(*tablet_schema, false);
+    DeleteBitmapPtr bitmap = std::make_shared<DeleteBitmap>(tablet->tablet_id());
     vector<RowsetReaderSharedPtr> input_rs_readers;
+    vector<RowsetSharedPtr> specified_rowsets;
+    int expedt_cardinality = 0;
     for (auto& rowset : input_rowsets) {
+        std::vector<segment_v2::SegmentSharedPtr> segments;
+        EXPECT_TRUE(std::dynamic_pointer_cast<BetaRowset>(rowset)->load_segments(&segments).ok());
+        EXPECT_TRUE(BaseTablet::calc_delete_bitmap(tablet, rowset, segments, specified_rowsets,
+                                                   bitmap, rowset->version().second, nullptr)
+                            .ok());
+        EXPECT_EQ(bitmap->cardinality(), expedt_cardinality);
+        specified_rowsets.push_back(rowset);
+        // since all rowsets data is same, so new generated delete bitmap should equal to num rows
+        // in rowset.
+        expedt_cardinality += rowset->num_rows();
         RowsetReaderSharedPtr rs_reader;
         EXPECT_TRUE(rowset->create_reader(&rs_reader).ok());
         input_rs_readers.push_back(std::move(rs_reader));
     }
+    tablet->tablet_meta()->delete_bitmap().merge(*bitmap);
 
     // create output rowset writer
     auto writer_context = create_rowset_writer_context(tablet_schema, NONOVERLAPPING, 3456,
@@ -696,7 +712,6 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
     auto output_rs_writer = std::move(res).value();
 
     // merge input rowset
-    TabletSharedPtr tablet = create_tablet(*tablet_schema, false);
     Merger::Statistics stats;
     RowIdConversion rowid_conversion;
     stats.rowid_conversion = &rowid_conversion;
