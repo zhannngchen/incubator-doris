@@ -695,15 +695,14 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMerge) {
         EXPECT_TRUE(BaseTablet::calc_delete_bitmap(tablet, rowset, segments, specified_rowsets,
                                                    bitmap, rowset->version().second, nullptr)
                             .ok());
-        EXPECT_EQ(bitmap->cardinality(), expedt_cardinality);
         specified_rowsets.push_back(rowset);
         // since all rowsets data is same, so new generated delete bitmap should equal to num rows
         // in rowset.
-        expedt_cardinality += rowset->num_rows();
         RowsetReaderSharedPtr rs_reader;
         EXPECT_TRUE(rowset->create_reader(&rs_reader).ok());
         input_rs_readers.push_back(std::move(rs_reader));
     }
+    EXPECT_EQ(bitmap->cardinality(), num_segments * rows_per_segment * (num_input_rowset - 1));
     tablet->tablet_meta()->delete_bitmap().merge(*bitmap);
 
     // create output rowset writer
@@ -1128,15 +1127,14 @@ TEST_F(VerticalCompactionTest, TestUniqueKeyVerticalMergeWithDelete) {
         EXPECT_TRUE(BaseTablet::calc_delete_bitmap(tablet, rowset, segments, specified_rowsets,
                                                    bitmap, rowset->version().second, nullptr)
                             .ok());
-        EXPECT_EQ(bitmap->cardinality(), expedt_cardinality);
         specified_rowsets.push_back(rowset);
         // since all rowsets data is same, so new generated delete bitmap should equal to num rows
         // in rowset.
-        expedt_cardinality += rowset->num_rows();
         RowsetReaderSharedPtr rs_reader;
         EXPECT_TRUE(rowset->create_reader(&rs_reader).ok());
         input_rs_readers.push_back(std::move(rs_reader));
     }
+    EXPECT_EQ(bitmap->cardinality(), num_segments * rows_per_segment * (num_input_rowset - 1));
     tablet->tablet_meta()->delete_bitmap().merge(*bitmap);
 
     // create output rowset writer
