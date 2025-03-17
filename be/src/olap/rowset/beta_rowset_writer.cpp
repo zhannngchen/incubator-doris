@@ -334,7 +334,7 @@ Status BaseBetaRowsetWriter::_generate_delete_bitmap(int32_t segment_id) {
     OlapStopWatch watch;
     RETURN_IF_ERROR(BaseTablet::calc_delete_bitmap(
             _context.tablet, rowset_ptr, segments, specified_rowsets,
-            _context.mow_context->delete_bitmap, _context.mow_context->max_version,
+            _context.mow_context->output_delete_bitmap, _context.mow_context->max_version,
             _calc_delete_bitmap_token.get()));
     size_t total_rows = std::accumulate(
             segments.begin(), segments.end(), 0,
@@ -420,7 +420,7 @@ Status BetaRowsetWriter::_find_longest_consecutive_small_segment(
                 RETURN_IF_ERROR(_rename_compacted_segment_plain(_segcompacted_point++));
                 if (_segcompaction_worker->need_convert_delete_bitmap()) {
                     _segcompaction_worker->convert_segment_delete_bitmap(
-                            _context.mow_context->delete_bitmap, segid, dst_seg_id);
+                            _context.mow_context->output_delete_bitmap, segid, dst_seg_id);
                 }
                 continue;
             } else {
@@ -451,7 +451,7 @@ Status BetaRowsetWriter::_find_longest_consecutive_small_segment(
         RETURN_IF_ERROR(_rename_compacted_segment_plain(_segcompacted_point++));
         if (_segcompaction_worker->need_convert_delete_bitmap()) {
             _segcompaction_worker->convert_segment_delete_bitmap(
-                    _context.mow_context->delete_bitmap, src_seg_id, dst_seg_id);
+                    _context.mow_context->output_delete_bitmap, src_seg_id, dst_seg_id);
         }
         segments->clear();
         return Status::OK();
@@ -652,7 +652,7 @@ Status BetaRowsetWriter::_segcompaction_rename_last_segments() {
         RETURN_IF_ERROR(_rename_compacted_segment_plain(_segcompacted_point++));
         if (_segcompaction_worker->need_convert_delete_bitmap()) {
             _segcompaction_worker->convert_segment_delete_bitmap(
-                    _context.mow_context->delete_bitmap, segid, dst_segid);
+                    _context.mow_context->output_delete_bitmap, segid, dst_segid);
         }
     }
     return Status::OK();
@@ -801,9 +801,9 @@ Status BetaRowsetWriter::_close_file_writers() {
                 rowsetids.insert(rowset_id());
                 context().tablet->add_sentinel_mark_to_delete_bitmap(converted_delete_bitmap.get(),
                                                                      rowsetids);
-                context().mow_context->delete_bitmap->remove({rowset_id(), 0, 0},
-                                                             {rowset_id(), UINT32_MAX, INT64_MAX});
-                context().mow_context->delete_bitmap->merge(*converted_delete_bitmap);
+                context().mow_context->output_delete_bitmap->remove(
+                        {rowset_id(), 0, 0}, {rowset_id(), UINT32_MAX, INT64_MAX});
+                context().mow_context->output_delete_bitmap->merge(*converted_delete_bitmap);
             }
         }
     }

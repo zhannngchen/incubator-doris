@@ -127,6 +127,7 @@ Status BaseRowsetBuilder::init_mow_context(std::shared_ptr<MowContext>& mow_cont
     std::lock_guard<std::shared_mutex> lck(tablet()->get_header_lock());
     _max_version_in_flush_phase = tablet()->max_version_unlocked();
     std::vector<RowsetSharedPtr> rowset_ptrs;
+    DeleteBitmapPtr agged_delete_bitmap = std::make_shared<DeleteBitmap>(tablet()->tablet_id());
     // tablet is under alter process. The delete bitmap will be calculated after conversion.
     if (tablet()->tablet_state() == TABLET_NOTREADY) {
         // Disable 'partial_update' when the tablet is undergoing a 'schema changing process'
@@ -140,10 +141,13 @@ Status BaseRowsetBuilder::init_mow_context(std::shared_ptr<MowContext>& mow_cont
         RETURN_IF_ERROR(
                 tablet()->get_all_rs_id_unlocked(_max_version_in_flush_phase, &_rowset_ids));
         rowset_ptrs = tablet()->get_rowset_by_ids(&_rowset_ids);
+        tablet()->get_agg_delete_bitmap_by_rsid(_rowset_ids, agged_delete_bitmap,
+                                                _max_version_in_flush_phase);
     }
     _delete_bitmap = std::make_shared<DeleteBitmap>(tablet()->tablet_id());
-    mow_context = std::make_shared<MowContext>(_max_version_in_flush_phase, _req.txn_id,
-                                               _rowset_ids, rowset_ptrs, _delete_bitmap);
+    mow_context =
+            std::make_shared<MowContext>(_max_version_in_flush_phase, _req.txn_id, _rowset_ids,
+                                         rowset_ptrs, agged_delete_bitmap, _delete_bitmap);
     return Status::OK();
 }
 

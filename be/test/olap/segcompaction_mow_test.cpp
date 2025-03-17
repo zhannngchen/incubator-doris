@@ -341,13 +341,13 @@ TEST_P(SegCompactionMoWTest, SegCompactionThenRead) {
                 columns[2]->insert_data((const char*)&k3, sizeof(k3));
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 if (delete_ratio == "full") { // delete all data
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, i, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 } else {
                     // mark delete every 3 rows, for segments that seg_id is even number
                     if (i % 2 == 0 && rid % 3 == 0) {
-                        writer_context.mow_context->delete_bitmap->add(
+                        writer_context.mow_context->output_delete_bitmap->add(
                                 {rowset_id, i, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                         rows_mark_deleted++;
                     }
@@ -448,7 +448,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -476,7 +476,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -504,7 +504,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -532,7 +532,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -563,7 +563,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows
                 if (rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                 }
                 unique_keys.emplace(k1, rid);
@@ -600,7 +600,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_ooooOOoOooooooooO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -678,7 +678,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_OoOoO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -706,7 +706,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_OoOoO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -734,7 +734,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_OoOoO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -762,7 +762,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_OoOoO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -790,7 +790,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionInterleaveWithBig_OoOoO) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (segid % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, segid, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }
@@ -863,7 +863,7 @@ TEST_F(SegCompactionMoWTest, SegCompactionNotTrigger) {
                 columns[3]->insert_data((const char*)&seq, sizeof(seq));
                 // mark delete every 3 rows, for segments that seg_id is even number
                 if (i % 2 == 0 && rid % 3 == 0) {
-                    writer_context.mow_context->delete_bitmap->add(
+                    writer_context.mow_context->output_delete_bitmap->add(
                             {rowset_id, i, DeleteBitmap::TEMP_VERSION_COMMON}, rid);
                     rows_mark_deleted++;
                 }

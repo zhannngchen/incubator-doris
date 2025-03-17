@@ -543,17 +543,22 @@ class DeleteBitmap;
 // merge on write context
 struct MowContext {
     MowContext(int64_t version, int64_t txnid, const RowsetIdUnorderedSet& ids,
-               std::vector<RowsetSharedPtr> rowset_ptrs, std::shared_ptr<DeleteBitmap> db)
+               std::vector<RowsetSharedPtr> rowset_ptrs, std::shared_ptr<DeleteBitmap> idb,
+               std::shared_ptr<DeleteBitmap> odb)
             : max_version(version),
               txn_id(txnid),
               rowset_ids(ids),
               rowset_ptrs(std::move(rowset_ptrs)),
-              delete_bitmap(std::move(db)) {}
+              input_delete_bitmap(std::move(idb)),
+              output_delete_bitmap(std::move(odb)) {}
     int64_t max_version;
     int64_t txn_id;
     const RowsetIdUnorderedSet& rowset_ids;
     std::vector<RowsetSharedPtr> rowset_ptrs;
-    std::shared_ptr<DeleteBitmap> delete_bitmap;
+    // the delete bitmap for `rowset_ptrs`
+    std::shared_ptr<DeleteBitmap> input_delete_bitmap;
+    // the delete bitmap calculated during flush
+    std::shared_ptr<DeleteBitmap> output_delete_bitmap;
 };
 
 // used for controll compaction

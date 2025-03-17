@@ -415,6 +415,17 @@ std::vector<RowsetSharedPtr> BaseTablet::get_rowset_by_ids(
     return rowsets;
 }
 
+void BaseTablet::get_agg_delete_bitmap_by_rsid(const RowsetIdUnorderedSet& rowset_ids,
+                                               DeleteBitmapPtr bitmap, uint64_t version) {
+    auto rowsets = get_rowset_by_ids(&rowset_ids);
+    for (auto rs : rowsets) {
+        for (uint32_t seg_id = 0; seg_id < rs->num_segments(); seg_id++) {
+            DeleteBitmap::BitmapKey bmk = {rs->rowset_id(), seg_id, version};
+            bitmap->set(bmk, *(tablet_meta()->delete_bitmap().get_agg(bmk)));
+        }
+    }
+}
+
 Status BaseTablet::lookup_row_data(const Slice& encoded_key, const RowLocation& row_location,
                                    RowsetSharedPtr input_rowset, OlapReaderStatistics& stats,
                                    std::string& values, bool write_to_cache) {

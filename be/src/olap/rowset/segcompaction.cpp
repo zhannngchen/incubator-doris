@@ -340,7 +340,7 @@ Status SegcompactionWorker::_do_compact_segments(SegCompactionCandidatesSharedPt
 
     RETURN_IF_ERROR(_delete_original_segments(begin, end));
     if (_rowid_conversion != nullptr) {
-        convert_segment_delete_bitmap(ctx.mow_context->delete_bitmap, begin, end,
+        convert_segment_delete_bitmap(ctx.mow_context->output_delete_bitmap, begin, end,
                                       _writer->_num_segcompacted);
     }
     RETURN_IF_ERROR(_writer->_rename_compacted_segments(begin, end));

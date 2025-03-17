@@ -142,6 +142,8 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     std::vector<RowsetSharedPtr> get_rowset_by_ids(
             const RowsetIdUnorderedSet* specified_rowset_ids);
+    void get_agg_delete_bitmap_by_rsid(const RowsetIdUnorderedSet& rowset_ids,
+                                       DeleteBitmapPtr bitmap, uint64_t version);
 
     // Lookup a row with TupleDescriptor and fill Block
     Status lookup_row_data(const Slice& encoded_key, const RowLocation& row_location,

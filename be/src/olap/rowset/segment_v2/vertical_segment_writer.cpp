@@ -377,7 +377,7 @@ Status VerticalSegmentWriter::_probe_key_for_mow(
         if (_opts.rowset_ctx->partial_update_info->is_strict_mode) {
             ++stats.num_rows_filtered;
             // delete the invalid newly inserted row
-            _mow_context->delete_bitmap->add(
+            _mow_context->output_delete_bitmap->add(
                     {_opts.rowset_ctx->rowset_id, _segment_id, DeleteBitmap::TEMP_VERSION_COMMON},
                     segment_pos);
         } else if (!have_delete_sign) {
@@ -411,12 +411,12 @@ Status VerticalSegmentWriter::_probe_key_for_mow(
     if (st.is<KEY_ALREADY_EXISTS>()) {
         // although we need to mark delete current row, we still need to read missing columns
         // for this row, we need to ensure that each column is aligned
-        _mow_context->delete_bitmap->add(
+        _mow_context->output_delete_bitmap->add(
                 {_opts.rowset_ctx->rowset_id, _segment_id, DeleteBitmap::TEMP_VERSION_COMMON},
                 segment_pos);
         ++stats.num_rows_deleted;
     } else {
-        _mow_context->delete_bitmap->add(
+        _mow_context->output_delete_bitmap->add(
                 {loc.rowset_id, loc.segment_id, DeleteBitmap::TEMP_VERSION_COMMON}, loc.row_id);
         ++stats.num_rows_updated;
     }
@@ -570,7 +570,7 @@ Status VerticalSegmentWriter::_append_block_with_partial_content(RowsInBlock& da
     CHECK_EQ(use_default_or_null_flag.size(), data.num_rows);
 
     if (config::enable_merge_on_write_correctness_check) {
-        _tablet->add_sentinel_mark_to_delete_bitmap(_mow_context->delete_bitmap.get(),
+        _tablet->add_sentinel_mark_to_delete_bitmap(_mow_context->output_delete_bitmap.get(),
                                                     _mow_context->rowset_ids);
     }
 
@@ -748,7 +748,7 @@ Status VerticalSegmentWriter::_append_block_with_flexible_partial_content(
     CHECK_EQ(use_default_or_null_flag.size(), data.num_rows);
 
     if (config::enable_merge_on_write_correctness_check) {
-        _tablet->add_sentinel_mark_to_delete_bitmap(_mow_context->delete_bitmap.get(),
+        _tablet->add_sentinel_mark_to_delete_bitmap(_mow_context->output_delete_bitmap.get(),
                                                     _mow_context->rowset_ids);
     }
 
