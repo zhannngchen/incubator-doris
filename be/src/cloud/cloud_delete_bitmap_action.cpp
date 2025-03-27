@@ -131,7 +131,11 @@ Status CloudDeleteBitmapAction::_handle_show_ms_delete_bitmap_count(HttpRequest*
         return st;
     }
     auto tablet = std::make_shared<CloudTablet>(_engine, std::move(tablet_meta));
-    st = _engine.meta_mgr().sync_tablet_rowsets(tablet.get(), false, true, true);
+    SyncOptions options;
+    options.warmup_delta_data = false;
+    options.sync_delete_bitmap = true;
+    options.full_sync = true;
+    st = _engine.to_cloud().meta_mgr().sync_tablet_rowsets(tablet.get(), options);
     if (!st.ok()) {
         LOG(WARNING) << "failed to sync tablet=" << tablet_id << ", st=" << st;
         return st;
