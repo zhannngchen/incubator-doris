@@ -702,10 +702,10 @@ TEST_F(TestDeltaWriter, vec_write) {
         ASSERT_TRUE(res.ok()) << res;
         ASSERT_EQ(1, read_block.rows());
         // get the value from sequence column
-        auto date_v16= read_block.get_by_position(16).column->get_int(0);
-        std::cout << "date_v_16: " << date_v16 << std::endl;
-        auto date_v17= read_block.get_by_position(17).column->get_int(0);
-        std::cout << "date_v_17: " << date_v17 << std::endl;
+        int64_t date_v16= read_block.get_by_position(16).column->get_int(0);
+        std::cout << "date_v_16: " << date_v16 << ", size:" << sizeof(date_v16) << std::endl;
+        int64_t date_v17= read_block.get_by_position(17).column->get_int(0);
+        std::cout << "date_v_17: " << date_v17 << ", size:" << sizeof(date_v17)  << std::endl;
     }
     ASSERT_EQ(1, tablet->num_rows());
 
