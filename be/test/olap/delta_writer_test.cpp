@@ -706,12 +706,12 @@ TEST_F(TestDeltaWriter, vec_write) {
         std::cout << "date_v_16: " << date_v16 << ", size:" << sizeof(date_v16) << std::endl;
         std::cout << "date_v_16 raw byte size: "
                   << read_block.get_by_position(16).column->byte_size()
-                  << ", name: " << read_block.get_by_position(16).column->get_name();
+                  << ", name: " << read_block.get_by_position(16).name;
         int64_t date_v17 = read_block.get_by_position(17).column->get_int(0);
         std::cout << "date_v_17: " << date_v17 << ", size:" << sizeof(date_v17) << std::endl;
         std::cout << "date_v_17 raw byte size: "
                   << read_block.get_by_position(17).column->byte_size()
-                  << ", name: " << read_block.get_by_position(17).column->get_name();
+                  << ", name: " << read_block.get_by_position(17).name;
     }
     ASSERT_EQ(1, tablet->num_rows());
 
