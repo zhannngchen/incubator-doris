@@ -620,12 +620,14 @@ TEST_F(TestDeltaWriter, vec_write) {
         auto v6_int = v6.to_int64();
         columns[16]->insert_data((const char*)&v6_int, sizeof(v6_int));
         std::cout << "vec_6: " << v6_int << ", size: " << sizeof(v6_int) << std::endl;
+        std::cout << "vec_6 get_from_column: " << columns[16]->get_int(0) << std::endl;
 
         VecDateTimeValue v7;
         v7.from_date_str("2636-08-16 19:39:43", 19);
         auto v7_int = v7.to_int64();
         columns[17]->insert_data((const char*)&v7_int, sizeof(v7_int));
         std::cout << "vec_7: " << v7_int << ", size:" << sizeof(v7_int) << std::endl;
+        std::cout << "vec_7 get_from_column: " << columns[17]->get_int(0) << std::endl;
 
         columns[18]->insert_data("abcd", 4);
         columns[19]->insert_data("abcde", 5);
@@ -706,12 +708,12 @@ TEST_F(TestDeltaWriter, vec_write) {
         std::cout << "date_v_16: " << date_v16 << ", size:" << sizeof(date_v16) << std::endl;
         std::cout << "date_v_16 raw byte size: "
                   << read_block.get_by_position(16).column->byte_size()
-                  << ", name: " << read_block.get_by_position(16).name;
+                  << ", name: " << read_block.get_by_position(16).name << std::endl;
         int64_t date_v17 = read_block.get_by_position(17).column->get_int(0);
         std::cout << "date_v_17: " << date_v17 << ", size:" << sizeof(date_v17) << std::endl;
         std::cout << "date_v_17 raw byte size: "
                   << read_block.get_by_position(17).column->byte_size()
-                  << ", name: " << read_block.get_by_position(17).name;
+                  << ", name: " << read_block.get_by_position(17).name << std::endl;
     }
     ASSERT_EQ(1, tablet->num_rows());
 
