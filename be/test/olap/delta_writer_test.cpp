@@ -704,6 +704,11 @@ TEST_F(TestDeltaWriter, vec_write) {
         ASSERT_TRUE(res.ok()) << res;
         ASSERT_EQ(1, read_block.rows());
         // get the value from sequence column
+        int64_t date_v15 = read_block.get_by_position(15).column->get_int(0);
+        std::cout << "date_v_15: " << date_v15 << ", size:" << sizeof(date_v15) << std::endl;
+        std::cout << "date_v_15 raw byte size: "
+                  << read_block.get_by_position(15).column->byte_size()
+                  << ", name: " << read_block.get_by_position(15).name << std::endl;
         int64_t date_v16 = read_block.get_by_position(16).column->get_int(0);
         std::cout << "date_v_16: " << date_v16 << ", size:" << sizeof(date_v16) << std::endl;
         std::cout << "date_v_16 raw byte size: "
