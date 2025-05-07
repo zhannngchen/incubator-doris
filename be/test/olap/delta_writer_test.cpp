@@ -619,11 +619,13 @@ TEST_F(TestDeltaWriter, vec_write) {
         v6.from_date_str("2048-11-10", 10);
         auto v6_int = v6.to_int64();
         columns[16]->insert_data((const char*)&v6_int, sizeof(v6_int));
+        std::cout << "vec_6: " << v6_int << std::endl;
 
         VecDateTimeValue v7;
         v7.from_date_str("2636-08-16 19:39:43", 19);
         auto v7_int = v7.to_int64();
         columns[17]->insert_data((const char*)&v7_int, sizeof(v7_int));
+        std::cout << "vec_7: " << v7_int << std::endl;
 
         columns[18]->insert_data("abcd", 4);
         columns[19]->insert_data("abcde", 5);
@@ -678,6 +680,32 @@ TEST_F(TestDeltaWriter, vec_write) {
                   << "-" << rowset->version().second << std::endl;
         res = tablet->add_inc_rowset(rowset);
         ASSERT_TRUE(res.ok());
+
+        std::vector<segment_v2::SegmentSharedPtr> segments;
+        res = ((BetaRowset*)rowset.get())->load_segments(&segments);
+        ASSERT_TRUE(res.ok());
+        ASSERT_EQ(1, rowset->num_segments());
+        ASSERT_EQ(1, segments.size());
+
+        // read data, verify the data correct
+        OlapReaderStatistics stats1;
+        StorageReadOptions opts;
+        opts.stats = &stats1;
+        opts.tablet_schema = rowset->tablet_schema();
+
+        std::unique_ptr<RowwiseIterator> iter;
+        std::shared_ptr<Schema> schema = std::make_shared<Schema>(rowset->tablet_schema());
+        auto s = segments[0]->new_iterator(schema, opts, &iter);
+        ASSERT_TRUE(s.ok());
+        auto read_block = rowset->tablet_schema()->create_block();
+        res = iter->next_batch(&read_block);
+        ASSERT_TRUE(res.ok()) << res;
+        ASSERT_EQ(1, read_block.rows());
+        // get the value from sequence column
+        auto date_v16= read_block.get_by_position(16).column->get_int(0);
+        std::cout << "date_v_16: " << date_v16 << std::endl;
+        auto date_v17= read_block.get_by_position(17).column->get_int(0);
+        std::cout << "date_v_16: " << date_v17 << std::endl;
     }
     ASSERT_EQ(1, tablet->num_rows());
 
