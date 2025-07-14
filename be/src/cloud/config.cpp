@@ -95,5 +95,7 @@ DEFINE_mInt64(warmup_tablet_replica_info_cache_ttl_sec, "600");
 
 DEFINE_mInt64(warm_up_rowset_slow_log_ms, "1000");
 
+DEFINE_mBool(enable_delayed_rowset_visibility_after_warmup, "false");
+
 #include "common/compile_check_end.h"
 } // namespace doris::config
