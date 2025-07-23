@@ -40,6 +40,8 @@
 
 namespace doris::io {
 
+bvar::Adder<uint64_t> g_file_cache_download_submitted_num("file_cache_download_submitted_num");
+
 FileCacheBlockDownloader::FileCacheBlockDownloader(CloudStorageEngine& engine) : _engine(engine) {
     _poller = std::thread(&FileCacheBlockDownloader::polling_download_task, this);
     auto st = ThreadPoolBuilder("FileCacheBlockDownloader")
@@ -93,6 +95,7 @@ void FileCacheBlockDownloader::submit_download_task(DownloadTask task) {
         _task_queue.push_back(std::move(task));
         _empty.notify_all();
     }
+    g_file_cache_download_submitted_num << 1;
 }
 
 void FileCacheBlockDownloader::polling_download_task() {
