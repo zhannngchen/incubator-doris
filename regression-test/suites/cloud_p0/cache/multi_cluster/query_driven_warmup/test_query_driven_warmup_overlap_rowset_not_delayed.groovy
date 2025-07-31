@@ -19,7 +19,7 @@ import org.apache.doris.regression.suite.ClusterOptions
 import org.apache.doris.regression.util.NodeType
 import groovy.json.JsonSlurper
 
-suite('test_query_driven_warmup_not_triggered', 'docker') {
+suite('test_query_driven_warmup_overlap_rowset_not_delayed', 'docker') {
     def options = new ClusterOptions()
     options.feConfigs += [
         'cloud_cluster_check_interval_second=1',

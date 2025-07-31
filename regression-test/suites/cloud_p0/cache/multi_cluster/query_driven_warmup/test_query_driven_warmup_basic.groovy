@@ -215,6 +215,7 @@ suite('test_query_driven_warmup_basic', 'docker') {
         sleep(3000)
 
         assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 7)
+        assertEquals(7, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
         assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
         assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_num"))
         assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_failure_num"))
