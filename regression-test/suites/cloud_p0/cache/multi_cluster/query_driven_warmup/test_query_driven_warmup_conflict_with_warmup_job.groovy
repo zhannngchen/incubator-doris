@@ -19,7 +19,7 @@ import org.apache.doris.regression.suite.ClusterOptions
 import org.apache.doris.regression.util.NodeType
 import groovy.json.JsonSlurper
 
-suite('test_query_driven_warmup_basic', 'docker') {
+suite('test_query_driven_warmup_conflict_with_warmup_job', 'docker') {
     def options = new ClusterOptions()
     options.feConfigs += [
         'cloud_cluster_check_interval_second=1',
@@ -100,17 +100,6 @@ suite('test_query_driven_warmup_basic', 'docker') {
         }
     }
 
-    def injectAddOverlapRowsetSleep = {cluster, sleep_s ->
-        def backends = sql """SHOW BACKENDS"""
-        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
-        def injectName = 'CloudTablet.warm_up_done_cb.inject_sleep_s'
-        for (be in cluster_bes) {
-            def ip = be[1]
-            def port = be[4]
-            GetDebugPoint().enableDebugPoint(ip, port as int, NodeType.BE, injectName, [sleep:sleep_s])
-        }
-    }
-
     docker(options) {
         def clusterName1 = "warmup_source"
         def clusterName2 = "warmup_target"
@@ -146,33 +135,33 @@ suite('test_query_driven_warmup_basic', 'docker') {
         clearFileCacheOnAllBackends()
         sleep(15000)
 
+        sql """use @${clusterName1}"""
         sql """insert into test values (1, '{"a" : 1.0}')"""
         sql """insert into test values (2, '{"a" : 111.1111}')"""
         sql """insert into test values (3, '{"a" : "11111"}')"""
         sql """insert into test values (4, '{"a" : 1111111111}')"""
         sql """insert into test values (5, '{"a" : 1111.11111}')"""
 
-        // make warmup job slow
         injectS3FileReadSlow(clusterName2, 20)
         def jobId_ = sql "WARM UP COMPUTE GROUP ${clusterName2} WITH TABLE test"
         sleep(1000)
-        assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 5)
-
-        def getJobState = { jobId ->
-            def jobStateResult = sql """  SHOW WARM UP JOB WHERE ID = ${jobId} """
-            return jobStateResult[0]
-        }
-
-        // switch to read cluster, trigger a sync rowset
-        sql """use @${clusterName2}"""
-        qt_sql """select * from test"""
-        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
-        // sync rowset should not trigger duplicate warmup task
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
-        // make sure warmup job not finished
+        // if enable_query_driven_warmup is true, warmup will be triggerd the first
+        // time we get tablet, which is before WARM UP Job submit download task
+        // so warm up should not really trigger any download
+        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
+        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
+        // warm up will not trigger any download, so it should complete quite fast
+        // we've inject s3 file slow read before, if it indeed triggered any download,
+        // it can't complete right now.
         def jobstate = getJobState[0];
         logger.info("warmup job state =" + jobstate)
-        assertTrue(jobstate != 'FINISHED')
+        assertTrue(jobstate == 'FINISHED')
+
+        // switch to read cluster, run query, should not trigger any warmup
+        sql """use @${clusterName2}"""
+        qt_sql """select * from test"""
+        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
+        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
 
         // switch to source cluster and trigger compaction
         sql """use @${clusterName1}"""
@@ -182,10 +171,6 @@ suite('test_query_driven_warmup_basic', 'docker') {
 
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
-        sql """set enable_profile=true"""
-
-        // inject sleep on warm_up_done_cb, to avoid the warmup complete before query
-        injectAddOverlapRowsetSleep(clusterName2, 3);
         qt_sql """select * from test"""
         // wait until the injection complete
         sleep(3000)

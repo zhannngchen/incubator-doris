@@ -281,18 +281,31 @@ WarmUpState CloudTablet::get_rowset_warmup_state(RowsetId rowset_id) {
     return _rowset_warm_up_states[rowset_id];
 }
 
-void CloudTablet::set_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
+bool CloudTablet::add_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
     std::lock_guard wlock(_meta_lock);
+    if (_rowset_warm_up_states.find(rowset_id) != _rowset_warm_up_states.end()) {
+        return false;
+    }
     if (state == WarmUpState::TRIGGERED_BY_JOB) {
         g_file_cache_warm_up_triggered_by_job_num << 1;
     } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
         g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
     }
     _rowset_warm_up_states[rowset_id] = state;
+    return true;
+}
+
+bool CloudTablet::update_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
+    std::lock_guard wlock(_meta_lock);
+    if (_rowset_warm_up_states.find(rowset_id) == _rowset_warm_up_states.end()) {
+        return false;
+    }
+    _rowset_warm_up_states[rowset_id] = state;
+    return true;
 }
 
 void CloudTablet::erase_rowset_warmup_state(RowsetId rowset_id) {
-    std::lock_guard rlock(_meta_lock);
+    std::lock_guard wlock(_meta_lock);
     _rowset_warm_up_states.erase(rowset_id);
 }
 

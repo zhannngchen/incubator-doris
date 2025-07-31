@@ -167,15 +167,24 @@ void CloudWarmUpManager::handle_jobs() {
                         expiration_time = 0;
                     }
 
-                    tablet->set_rowset_warmup_state(rs->rowset_id(), WarmUpState::TRIGGERED_BY_JOB);
+                    if (tablet->add_rowset_warmup_state(rs->rowset_id(),
+                                                        WarmUpState::TRIGGERED_BY_JOB)) {
+                        LOG(INFO) << "found duplicate warmup task for rowset " << rs->rowset_id()
+                                  << ", skip it";
+                        continue;
+                    }
                     // 1st. download segment files
                     submit_download_tasks(
                             storage_resource.value()->remote_segment_path(*rs, seg_id),
                             rs->segment_file_size(seg_id), storage_resource.value()->fs,
                             expiration_time, wait, [tablet, rs](Status st) {
                                 if (st.ok()) {
-                                    tablet->set_rowset_warmup_state(rs->rowset_id(),
-                                                                    WarmUpState::DONE);
+                                    if (!tablet->update_rowset_warmup_state(rs->rowset_id(),
+                                                                            WarmUpState::DONE)) {
+                                        LOG(WARNING)
+                                                << "set warm up state to DONE failed, the rowset "
+                                                << rs->rowset_id() << " not exist";
+                                    }
                                 } else {
                                     tablet->erase_rowset_warmup_state(rs->rowset_id());
                                 }

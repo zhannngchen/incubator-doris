@@ -295,7 +295,8 @@ public:
     void warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
                                  bool delay_add_rowset = false);
     WarmUpState get_rowset_warmup_state(RowsetId rowset_id);
-    void set_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
+    bool add_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
+    bool update_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
     void erase_rowset_warmup_state(RowsetId rowset_id);
 
     bool is_warm_up_conflict_with_compaction();
