@@ -29,6 +29,8 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         'file_cache_enter_disk_resource_limit_mode_percent=99',
         'enable_evict_file_cache_in_advance=false',
         'block_file_cache_monitor_interval_sec=1',
+        'tablet_rowset_stale_sweep_time_sec=0',
+        'vacuum_stale_rowsets_interval_s=10',
     ]
     options.enableDebugPoints()
     options.cloudMode = true
@@ -101,6 +103,54 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         }
     }
 
+    def getTabletStatus = { cluster, tablet_id ->
+        def backends = sql """SHOW BACKENDS"""
+        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
+        assert cluster_bes.size() > 0, "No backend found for cluster ${cluster}"
+        def be = cluster_bes[0]
+        def ip = be[1]
+        def port = be[4]
+        StringBuilder sb = new StringBuilder();
+        sb.append("curl -X GET http://${ip}:${port}")
+        sb.append("/api/compaction/show?tablet_id=")
+        sb.append(tablet_id)
+
+        String command = sb.toString()
+        logger.info(command)
+        def process = command.execute()
+        def code = process.waitFor()
+        def out = process.getText()
+        logger.info("Get tablet status:  =" + code + ", out=" + out)
+        assertEquals(code, 0)
+        def tabletStatus = parseJson(out.trim())
+        return tabletStatus
+    }
+
+    def checkFileCacheRecycle = { cluster, rowsets ->
+        def backends = sql """SHOW BACKENDS"""
+        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
+        assert cluster_bes.size() > 0, "No backend found for cluster ${cluster}"
+        def be = cluster_bes[0]
+        def ip = be[1]
+        def port = be[4]
+
+        for (int i = 0; i < all_history_stale_rowsets.size(); i++) {
+            def rowsetStr = all_history_stale_rowsets[i]
+            // [12-12] 1 DATA NONOVERLAPPING 02000000000000124843c92c13625daa8296c20957119893 1011.00 B
+            def start_version = rowsetStr.split(" ")[0].replace('[', '').replace(']', '').split("-")[0].toInteger()
+            def end_version = rowsetStr.split(" ")[0].replace('[', '').replace(']', '').split("-")[1].toInteger()
+            def rowset_id = rowsetStr.split(" ")[4]
+            if (start_version == 0 || start_version != end_version) {
+                continue
+            }
+
+            logger.info("rowset ${i}, start: ${start_version}, end: ${end_version}, id: ${rowset_id}")
+            def data = Http.GET("http://${ip}:${port}/api/file_cache?op=list_cache&value=${rowset_id}_0.dat", true)
+            logger.info("file cache data: ${data}")
+            // assertTrue(data.size() == 0)
+        }
+    }
+
     docker(options) {
         def clusterName1 = "warmup_source"
         def clusterName2 = "warmup_target"
@@ -136,12 +186,22 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         clearFileCacheOnAllBackends()
         sleep(15000)
 
+        def tablets = sql_return_maparray """ show tablets from ${testTable}; """
+        logger.info("tablets: " + tablets)
+        assertEquals(1, tablets.size())
+        def tablet = tablets[0]
+        String tablet_id = tablet.TabletId
+
         sql """use @${clusterName1}"""
         sql """insert into test values (1, '{"a" : 1.0}')"""        // [2-2]
         sql """insert into test values (2, '{"a" : 111.1111}')"""   // [3-3]
         sql """insert into test values (3, '{"a" : "11111"}')"""    // [4-4]
         sql """insert into test values (4, '{"a" : 1111111111}')""" // [5-5]
         sql """insert into test values (5, '{"a" : 1111.11111}')""" // [6-6]
+
+        Set<String> all_history_stale_rowsets = new HashSet<>();
+        def tablet_status = getTabletStatus(clusterName1, tablet_id)
+        all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
@@ -154,6 +214,9 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         trigger_and_wait_compaction("test", "cumulative")           // [2-6]
         sql """insert into test values (6, '{"a" : 1111.11111}')""" //[7-7]
         sleep(2000)
+
+        tablet_status = getTabletStatus(clusterName1, tablet_id)
+        all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
@@ -175,6 +238,9 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         sql """insert into test values (9, '{"a" : "11111"}')"""     // [10-10]
         sql """insert into test values (10, '{"a" : 1111111111}')""" // [11-11]
 
+        tablet_status = getTabletStatus(clusterName1, tablet_id)
+        all_history_stale_rowsets.addAll(tablet_status["rowsets"])
+
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
         qt_sql """select * from test""" // will sync [8-8], [9-9], [10-10], [11-11]
@@ -187,6 +253,9 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         trigger_and_wait_compaction("test", "full") // [2-11]
         sql """insert into test values (11, '{"a" : 1111111111}')""" // [12-12]
         sleep(1000)
+
+        tablet_status = getTabletStatus(clusterName1, tablet_id)
+        all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
@@ -202,5 +271,9 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         // [2-6] is too late, add_rowset fail
         assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_failure_num"))
         qt_sql """select * from test""" // check the result
+
+        // sleep for vacuum_stale_rowsets_interval_s=10 seconds to wait for unused rowsets are deleted
+        sleep(21000)
+        checkFileCacheRecycle(clusterName2, all_history_stale_rowsets)
     }
 }
