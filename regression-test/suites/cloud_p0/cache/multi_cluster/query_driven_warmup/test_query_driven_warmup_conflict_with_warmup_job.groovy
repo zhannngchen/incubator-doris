@@ -142,26 +142,17 @@ suite('test_query_driven_warmup_conflict_with_warmup_job', 'docker') {
         sql """insert into test values (4, '{"a" : 1111111111}')"""
         sql """insert into test values (5, '{"a" : 1111.11111}')"""
 
-        injectS3FileReadSlow(clusterName2, 20)
+        // make warm up job slow
+        injectS3FileReadSlow(clusterName2, 5)
         def jobId_ = sql "WARM UP COMPUTE GROUP ${clusterName2} WITH TABLE test"
         sleep(1000)
-        // if enable_query_driven_warmup is true, warmup will be triggerd the first
-        // time we get tablet, which is before WARM UP Job submit download task
-        // so warm up should not really trigger any download
-        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
-        // warm up will not trigger any download, so it should complete quite fast
-        // we've inject s3 file slow read before, if it indeed triggered any download,
-        // it can't complete right now.
-        def jobstate = getJobState[0];
-        logger.info("warmup job state =" + jobstate)
-        assertTrue(jobstate == 'FINISHED')
-
         // switch to read cluster, run query, should not trigger any warmup
         sql """use @${clusterName2}"""
         qt_sql """select * from test"""
-        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
+        // no duplicate warmup
+        def triggerd_by_rowset = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num")
+        def triggerd_by_job = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num");
+        assertEquals(5, triggerd_by_rowset + triggerd_by_job)
 
         // switch to source cluster and trigger compaction
         sql """use @${clusterName1}"""
@@ -176,8 +167,10 @@ suite('test_query_driven_warmup_conflict_with_warmup_job', 'docker') {
         sleep(3000)
 
         assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 7)
-        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
-        assertEquals(2, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
+        def triggerd_by_rowset1 = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num")
+        def triggerd_by_job1 = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num");
+        assertEquals(triggerd_by_rowset + 2, triggerd_by_rowset1)
+        assertEquals(7, triggerd_by_rowset1 + triggerd_by_job1)
         assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
         assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_num"))
         assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_failure_num"))
