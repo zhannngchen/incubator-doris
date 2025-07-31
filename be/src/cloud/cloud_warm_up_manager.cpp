@@ -36,10 +36,6 @@
 namespace doris {
 
 bvar::Adder<uint64_t> file_cache_warm_up_failed_task_num("file_cache_warm_up", "failed_task_num");
-bvar::Adder<uint64_t> file_cache_warm_up_triggeed_by_job_num(
-        "file_cache_warm_up_triggeed_by_job_num");
-bvar::Adder<uint64_t> file_cache_warm_up_triggeed_by_sync_rowset_num(
-        "file_cache_warm_up_triggeed_by_sync_rowset_num");
 
 CloudWarmUpManager::CloudWarmUpManager(CloudStorageEngine& engine) : _engine(engine) {
     _download_thread = std::thread(&CloudWarmUpManager::handle_jobs, this);

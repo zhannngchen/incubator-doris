@@ -37,7 +37,7 @@ enum class DownloadType {
     S3,
 };
 
-enum WarmUpState {
+enum class WarmUpState : int {
     NONE,
     TRIGGERED_BY_SYNC_ROWSET,
     TRIGGERED_BY_JOB,

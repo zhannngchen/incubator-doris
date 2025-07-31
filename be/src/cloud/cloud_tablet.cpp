@@ -35,6 +35,7 @@
 #include "cloud/cloud_meta_mgr.h"
 #include "cloud/cloud_storage_engine.h"
 #include "cloud/cloud_tablet_mgr.h"
+#include "cloud/cloud_warm_up_manager.h"
 #include "common/cast_set.h"
 #include "common/config.h"
 #include "common/logging.h"
@@ -73,6 +74,10 @@ bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_num");
 bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_failure_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_failure_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_triggeed_by_job_num(
+        "file_cache_warm_up_triggeed_by_job_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_triggeed_by_sync_rowset_num(
+        "file_cache_warm_up_triggeed_by_sync_rowset_num");
 
 static constexpr int LOAD_INITIATOR_ID = -1;
 
@@ -279,9 +284,9 @@ WarmUpState CloudTablet::get_rowset_warmup_state(RowsetId rowset_id) {
 void CloudTablet::set_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
     std::lock_guard wlock(_meta_lock);
     if (state == WarmUpState::TRIGGERED_BY_JOB) {
-        file_cache_warm_up_triggeed_by_job_num << 1;
+        g_file_cache_warm_up_triggeed_by_job_num << 1;
     } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
-        file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
+        g_file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
     }
     _rowset_warm_up_states[rowset_id] = state;
 }
@@ -378,7 +383,7 @@ void CloudTablet::warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_o
     }
     if (download_task_submitted) {
         VLOG_DEBUG << "warm up rowset " << rowset->version() << " triggerd by sync rowset";
-        file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
+        g_file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
         _rowset_warm_up_states[rowset->rowset_id()] = WarmUpState::TRIGGERED_BY_SYNC_ROWSET;
     }
 }

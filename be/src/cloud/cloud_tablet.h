@@ -19,7 +19,6 @@
 
 #include <memory>
 
-#include "cloud/cloud_warm_up_manager.h"
 #include "olap/base_tablet.h"
 #include "olap/partial_update_info.h"
 #include "olap/rowset/rowset.h"
@@ -27,6 +26,7 @@
 namespace doris {
 
 class CloudStorageEngine;
+enum class WarmUpState : int;
 
 struct SyncRowsetStats {
     int64_t get_remote_rowsets_num {0};
