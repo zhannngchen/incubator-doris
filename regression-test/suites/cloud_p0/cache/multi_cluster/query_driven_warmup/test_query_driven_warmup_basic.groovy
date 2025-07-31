@@ -60,7 +60,6 @@ suite('test_query_driven_warmup_basic', 'docker') {
     def updateBeConf = {cluster, key, value ->
         def backends = sql """SHOW BACKENDS"""
         def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
-        def injectName = 'CloudTablet.warm_up_done_cb.inject_sleep_s'
         for (be in cluster_bes) {
             def ip = be[1]
             def port = be[4]

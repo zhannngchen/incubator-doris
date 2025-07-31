@@ -19,7 +19,7 @@ import org.apache.doris.regression.suite.ClusterOptions
 import org.apache.doris.regression.util.NodeType
 import groovy.json.JsonSlurper
 
-suite('test_query_driven_warmup_not_triggered', 'docker') {
+suite('test_query_driven_warmup_basic', 'docker') {
     def options = new ClusterOptions()
     options.feConfigs += [
         'cloud_cluster_check_interval_second=1',
@@ -89,54 +89,26 @@ suite('test_query_driven_warmup_not_triggered', 'docker') {
         return getBrpcMetrics(ip, port, name)
     }
 
-    def getProfileList = {ip, port, user, pwd ->
-        def conn = new URL("http://${ip}:${port}/rest/v1/query_profile").openConnection()
-        conn.setRequestMethod("GET")
-        def encoding = Base64.getEncoder().encodeToString((user + ":" + (pwd == null ? "" : pwd)).getBytes("UTF-8"))
-        conn.setRequestProperty("Authorization", "Basic ${encoding}")
-        return conn.getInputStream().getText()
+    def injectS3FileReadSlow = {cluster, sleep_s ->
+        def backends = sql """SHOW BACKENDS"""
+        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
+        def injectName = 'S3FileReader::read_at_impl.io_slow'
+        for (be in cluster_bes) {
+            def ip = be[1]
+            def port = be[4]
+            GetDebugPoint().enableDebugPoint(ip, port as int, NodeType.BE, injectName, [sleep:sleep_s, execute:4])
+        }
     }
 
-    def getProfile = { ip, port, user, pwd, id ->
-        def conn = new URL("http://${ip}:${port}/api/profile/text/?query_id=$id").openConnection()
-        conn.setRequestMethod("GET")
-        def encoding = Base64.getEncoder().encodeToString((user + ":" + (pwd == null ? "" : pwd)).getBytes("UTF-8"))
-        conn.setRequestProperty("Authorization", "Basic ${encoding}")
-        return conn.getInputStream().getText()
-    }
-
-    def verifyProfileContent = {stmt ->
-        def fes = sql_return_maparray("SHOW FRONTENDS")
-        // Get the master frontend information
-        def masterFE = fes.find { it['IsMaster'] == "true" }
-        assert masterFE != null, "No master frontend found"
-        def masterHost = masterFE['Host']
-        def masterPort = masterFE['HttpPort']
-
-        // Sleep 500ms to wait for the profile collection
-        Thread.sleep(500)
-
-        // Get profile list by using getProfileList
-        List profileData = new JsonSlurper().parseText(getProfileList(masterHost, masterPort, 'root', null)).data.rows
-        // Find the profile id for the query that we just emitted
-        String profileId = ""
-        for (def profileItem : profileData) {
-            if (profileItem["Sql Statement"].toString().contains(stmt)) {
-                profileId = profileItem["Profile ID"].toString()
-                logger.info("Profile ID of ${stmt} is ${profileId}")
-                break
-            }
+    def injectAddOverlapRowsetSleep = {cluster, sleep_s ->
+        def backends = sql """SHOW BACKENDS"""
+        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
+        def injectName = 'CloudTablet.warm_up_done_cb.inject_sleep_s'
+        for (be in cluster_bes) {
+            def ip = be[1]
+            def port = be[4]
+            GetDebugPoint().enableDebugPoint(ip, port as int, NodeType.BE, injectName, [sleep:sleep_s])
         }
-        if (profileId == "" || profileId == null) {
-            logger.error("Profile ID of ${stmt} is not found")
-            return false
-        }
-        // Get profile content by using getProfile
-        def String profileContent = getProfile(masterHost, masterPort, 'root', null, profileId).toString()
-        logger.info("Profile content of ${stmt} is\n${profileContent}")
-
-        // For non-mow table, will not read data from remote
-        assertTrue(profileContent.contains("- BytesScannedFromRemote: 0"))
     }
 
     docker(options) {
@@ -150,10 +122,10 @@ suite('test_query_driven_warmup_not_triggered', 'docker') {
         def tag1 = getCloudBeTagByName(clusterName1)
         def tag2 = getCloudBeTagByName(clusterName2)
 
-        updateBeConf(clusterName2, "enable_query_driven_warmup", "true")
-
         logger.info("Cluster tag1: {}", tag1)
         logger.info("Cluster tag2: {}", tag2)
+
+        updateBeConf(clusterName2, "enable_query_driven_warmup", "true")
 
         def jsonSlurper = new JsonSlurper()
         def clusterId1 = jsonSlurper.parseText(tag1).compute_group_id
@@ -174,37 +146,55 @@ suite('test_query_driven_warmup_not_triggered', 'docker') {
         clearFileCacheOnAllBackends()
         sleep(15000)
 
-        sql """insert into test values (1, '{"a" : 1.0}')"""        // [2-2]
-        sql """insert into test values (2, '{"a" : 111.1111}')"""   // [3-3]
-        sql """insert into test values (3, '{"a" : "11111"}')"""    // [4-4]
-        sql """insert into test values (4, '{"a" : 1111111111}')""" // [5-5]
-        sql """insert into test values (5, '{"a" : 1111.11111}')""" // [6-6]
+        sql """insert into test values (1, '{"a" : 1.0}')"""
+        sql """insert into test values (2, '{"a" : 111.1111}')"""
+        sql """insert into test values (3, '{"a" : "11111"}')"""
+        sql """insert into test values (4, '{"a" : 1111111111}')"""
+        sql """insert into test values (5, '{"a" : 1111.11111}')"""
+
+        // make warmup job slow
+        injectS3FileReadSlow(clusterName2, 20)
+        def jobId_ = sql "WARM UP COMPUTE GROUP ${clusterName2} WITH TABLE test"
+        sleep(1000)
+        assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 5)
+
+        def getJobState = { jobId ->
+            def jobStateResult = sql """  SHOW WARM UP JOB WHERE ID = ${jobId} """
+            return jobStateResult[0]
+        }
 
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
         qt_sql """select * from test"""
-        assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 5)
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
+        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
+        // sync rowset should not trigger duplicate warmup task
+        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
+        // make sure warmup job not finished
+        def jobstate = getJobState[0];
+        logger.info("warmup job state =" + jobstate)
+        assertTrue(jobstate != 'FINISHED')
 
-        // switch to source cluster
-        // write data, then compaction, which will not trigger to delay add rowset
+        // switch to source cluster and trigger compaction
         sql """use @${clusterName1}"""
-        sql """insert into test values (6, '{"a" : 1111.11111}')""" // [7-7]
-        trigger_and_wait_compaction("test", "cumulative")           // [2-7]
-        sql """insert into test values (7, '{"a" : 1111.11111}')""" // [8-8]
+        trigger_and_wait_compaction("test", "cumulative")
+        sql """insert into test values (6, '{"a" : 1111.11111}')"""
         sleep(2000)
 
         // switch to read cluster, trigger a sync rowset
-        // max version of read cluster is 6, but we synced [2-7] and [8-8],
-        // show not trigger delay to add rowset
         sql """use @${clusterName2}"""
         sql """set enable_profile=true"""
+
+        // inject sleep on warm_up_done_cb, to avoid the warmup complete before query
+        injectAddOverlapRowsetSleep(clusterName2, 3);
         qt_sql """select * from test"""
-        sleep(1000)
+        // wait until the injection complete
+        sleep(3000)
 
         assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 7)
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
-        // due to a bug of profile, skip the check for now
-        // verifyProfileContent("select * from test");
+        assertEquals(5, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num"))
+        assertEquals(2, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num"))
+        assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
+        assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_num"))
+        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_failure_num"))
     }
 }

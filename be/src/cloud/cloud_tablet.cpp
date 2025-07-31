@@ -74,10 +74,10 @@ bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_num");
 bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_failure_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_failure_num");
-bvar::Adder<uint64_t> g_file_cache_warm_up_triggeed_by_job_num(
-        "file_cache_warm_up_triggeed_by_job_num");
-bvar::Adder<uint64_t> g_file_cache_warm_up_triggeed_by_sync_rowset_num(
-        "file_cache_warm_up_triggeed_by_sync_rowset_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_triggered_by_job_num(
+        "file_cache_warm_up_triggered_by_job_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_triggered_by_sync_rowset_num(
+        "file_cache_warm_up_triggered_by_sync_rowset_num");
 
 static constexpr int LOAD_INITIATOR_ID = -1;
 
@@ -284,9 +284,9 @@ WarmUpState CloudTablet::get_rowset_warmup_state(RowsetId rowset_id) {
 void CloudTablet::set_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
     std::lock_guard wlock(_meta_lock);
     if (state == WarmUpState::TRIGGERED_BY_JOB) {
-        g_file_cache_warm_up_triggeed_by_job_num << 1;
+        g_file_cache_warm_up_triggered_by_job_num << 1;
     } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
-        g_file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
+        g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
     }
     _rowset_warm_up_states[rowset_id] = state;
 }
@@ -383,7 +383,7 @@ void CloudTablet::warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_o
     }
     if (download_task_submitted) {
         VLOG_DEBUG << "warm up rowset " << rowset->version() << " triggerd by sync rowset";
-        g_file_cache_warm_up_triggeed_by_sync_rowset_num << 1;
+        g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
         _rowset_warm_up_states[rowset->rowset_id()] = WarmUpState::TRIGGERED_BY_SYNC_ROWSET;
     }
 }
@@ -405,7 +405,7 @@ void CloudTablet::warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool de
     if (delay_add_rowset) {
         DBUG_EXECUTE_IF("CloudTablet.warm_up_done_cb.inject_sleep_s", {
             auto sleep_time = dp->param("sleep", 3);
-            LOG_WARNING("CloudTablet.warm_up_done_cb.inject_sleep {} s", sleep_time)
+            LOG_INFO("CloudTablet.warm_up_done_cb.inject_sleep {} s", sleep_time)
                     .tag("tablet_id", tablet_id());
             std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
         });

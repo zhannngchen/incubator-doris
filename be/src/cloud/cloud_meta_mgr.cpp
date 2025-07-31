@@ -836,8 +836,7 @@ Status CloudMetaMgr::sync_tablet_rowsets_unlocked(CloudTablet* tablet,
                                << config::enable_query_driven_warmup
                                << ", is mow: " << tablet->enable_unique_key_merge_on_write()
                                << ", version_overlap: " << version_overlap
-                               << ", warmup_delta_data: " << options.warmup_delta_data
-                               << get_stack_trace();
+                               << ", warmup_delta_data: " << options.warmup_delta_data;
                     tablet->add_rowsets(std::move(rowsets), version_overlap, wlock,
                                         version_overlap || options.warmup_delta_data);
                 }
