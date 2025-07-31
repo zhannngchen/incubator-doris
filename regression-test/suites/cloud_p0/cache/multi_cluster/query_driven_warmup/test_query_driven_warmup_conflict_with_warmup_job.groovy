@@ -150,7 +150,7 @@ suite('test_query_driven_warmup_conflict_with_warmup_job', 'docker') {
         sql """use @${clusterName2}"""
         qt_sql """select * from test"""
         // no duplicate warmup
-        def triggerd_by_rowset = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num")
+        def triggerd_by_rowset = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_sync_rowset_num")
         def triggerd_by_job = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num");
         assertEquals(5, triggerd_by_rowset + triggerd_by_job)
 
@@ -167,7 +167,7 @@ suite('test_query_driven_warmup_conflict_with_warmup_job', 'docker') {
         sleep(3000)
 
         assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 7)
-        def triggerd_by_rowset1 = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_rowset_num")
+        def triggerd_by_rowset1 = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_sync_rowset_num")
         def triggerd_by_job1 = getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_triggered_by_job_num");
         assertEquals(triggerd_by_rowset + 2, triggerd_by_rowset1)
         assertEquals(7, triggerd_by_rowset1 + triggerd_by_job1)

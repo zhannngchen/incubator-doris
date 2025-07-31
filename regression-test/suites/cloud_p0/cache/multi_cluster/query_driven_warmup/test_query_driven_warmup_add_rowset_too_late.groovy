@@ -134,15 +134,12 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         def ip = be[1]
         def port = be[4]
 
-        for (int i = 0; i < all_history_stale_rowsets.size(); i++) {
-            def rowsetStr = all_history_stale_rowsets[i]
+        for (int i = 0; i < rowsets.size(); i++) {
+            def rowsetStr = rowsets[i]
             // [12-12] 1 DATA NONOVERLAPPING 02000000000000124843c92c13625daa8296c20957119893 1011.00 B
             def start_version = rowsetStr.split(" ")[0].replace('[', '').replace(']', '').split("-")[0].toInteger()
             def end_version = rowsetStr.split(" ")[0].replace('[', '').replace(']', '').split("-")[1].toInteger()
             def rowset_id = rowsetStr.split(" ")[4]
-            if (start_version == 0 || start_version != end_version) {
-                continue
-            }
 
             logger.info("rowset ${i}, start: ${start_version}, end: ${end_version}, id: ${rowset_id}")
             def data = Http.GET("http://${ip}:${port}/api/file_cache?op=list_cache&value=${rowset_id}_0.dat", true)
@@ -186,7 +183,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         clearFileCacheOnAllBackends()
         sleep(15000)
 
-        def tablets = sql_return_maparray """ show tablets from ${testTable}; """
+        def tablets = sql_return_maparray """ show tablets from test; """
         logger.info("tablets: " + tablets)
         assertEquals(1, tablets.size())
         def tablet = tablets[0]
@@ -274,6 +271,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
 
         // sleep for vacuum_stale_rowsets_interval_s=10 seconds to wait for unused rowsets are deleted
         sleep(21000)
+        logger.info("all_history_stale_rowsets.size: " + all_history_stale_rowsets.size())
         checkFileCacheRecycle(clusterName2, all_history_stale_rowsets)
     }
 }
