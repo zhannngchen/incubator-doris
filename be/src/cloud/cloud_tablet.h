@@ -19,8 +19,10 @@
 
 #include <memory>
 
+#include "cloud/cloud_warm_up_manager.h"
 #include "olap/base_tablet.h"
 #include "olap/partial_update_info.h"
+#include "olap/rowset/rowset.h"
 
 namespace doris {
 
@@ -292,6 +294,10 @@ public:
                                           std::vector<RowsetSharedPtr>* overlapping_rowsets);
     void warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
                                  bool delay_add_rowset = false);
+    WarmUpState get_rowset_warmup_state(RowsetId rowset_id);
+    void set_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
+    void erase_rowset_warmup_state(RowsetId rowset_id);
+
     bool is_warm_up_conflict_with_compaction();
 
 private:
@@ -361,14 +367,7 @@ private:
     std::unordered_map<RowsetId, RowsetSharedPtr> _unused_rowsets;
     std::vector<std::pair<std::vector<RowsetId>, DeleteBitmapKeyRanges>> _unused_delete_bitmap;
 
-    // structures for warm up data
-    enum WarmUpState {
-        NONE,
-        TRIGGERED_BY_SYNC_ROWSET,
-        TRIGGERED_BY_JOB,
-        DONE,
-    };
-
+    // for warm up states management
     std::unordered_map<RowsetId, WarmUpState> _rowset_warm_up_states;
 };
 
