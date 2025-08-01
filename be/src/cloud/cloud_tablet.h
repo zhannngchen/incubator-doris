@@ -295,7 +295,7 @@ public:
     void warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
                                  bool delay_add_rowset = false);
     WarmUpState get_rowset_warmup_state(RowsetId rowset_id);
-    bool add_rowset_warmup_state(RowsetSharedPtr rowset, WarmUpState state);
+    bool add_rowset_warmup_state(RowsetMetaSharedPtr rowset, WarmUpState state);
     bool complete_rowset_segment_warmup(RowsetId rowset_id, Status status);
 
     bool is_warm_up_conflict_with_compaction();
@@ -306,7 +306,7 @@ private:
 
     Status sync_if_not_running(SyncRowsetStats* stats = nullptr);
 
-    bool add_rowset_warmup_state_unlocked(RowsetSharedPtr rowset, WarmUpState state);
+    bool add_rowset_warmup_state_unlocked(RowsetMetaSharedPtr rowset, WarmUpState state);
 
     void warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool delay_add_rowset = false);
 
