@@ -295,9 +295,8 @@ public:
     void warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
                                  bool delay_add_rowset = false);
     WarmUpState get_rowset_warmup_state(RowsetId rowset_id);
-    bool add_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
-    bool update_rowset_warmup_state(RowsetId rowset_id, WarmUpState state);
-    void erase_rowset_warmup_state(RowsetId rowset_id);
+    bool add_rowset_warmup_state(RowsetSharedPtr rowset, WarmUpState state);
+    bool complete_rowset_segment_warmup(RowsetId rowset_id, Status status);
 
     bool is_warm_up_conflict_with_compaction();
 
@@ -306,6 +305,8 @@ private:
     void update_base_size(const Rowset& rs);
 
     Status sync_if_not_running(SyncRowsetStats* stats = nullptr);
+
+    bool add_rowset_warmup_state_unlocked(RowsetSharedPtr rowset, WarmUpState state);
 
     void warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool delay_add_rowset = false);
 
@@ -369,7 +370,7 @@ private:
     std::vector<std::pair<std::vector<RowsetId>, DeleteBitmapKeyRanges>> _unused_delete_bitmap;
 
     // for warm up states management
-    std::unordered_map<RowsetId, WarmUpState> _rowset_warm_up_states;
+    std::unordered_map<RowsetId, std::pair<WarmUpState, int32_t>> _rowset_warm_up_states;
 };
 
 using CloudTabletSPtr = std::shared_ptr<CloudTablet>;

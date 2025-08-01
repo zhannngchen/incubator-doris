@@ -16,10 +16,11 @@
 // under the License.
 
 import org.apache.doris.regression.suite.ClusterOptions
+import org.apache.doris.regression.util.Http
 import org.apache.doris.regression.util.NodeType
 import groovy.json.JsonSlurper
 
-suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
+suite('test_query_driven_warmup_add_rowset_fail_and_recycle', 'docker') {
     def options = new ClusterOptions()
     options.feConfigs += [
         'cloud_cluster_check_interval_second=1',
@@ -144,7 +145,12 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
             logger.info("rowset ${i}, start: ${start_version}, end: ${end_version}, id: ${rowset_id}")
             def data = Http.GET("http://${ip}:${port}/api/file_cache?op=list_cache&value=${rowset_id}_0.dat", true)
             logger.info("file cache data: ${data}")
-            // assertTrue(data.size() == 0)
+            // in this case only [2-11] and [12-12] should have data in cache
+            if ((start_version == 2 && end_version == 11) || (start_version == 12)) {
+                assertTrue(data.size() > 0)
+            } else {
+                assertTrue(data.size() == 0)
+            }
         }
     }
 
@@ -196,6 +202,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         sql """insert into test values (4, '{"a" : 1111111111}')""" // [5-5]
         sql """insert into test values (5, '{"a" : 1111.11111}')""" // [6-6]
 
+        sql """select * from test""" // sync rowsets on source cluster
         Set<String> all_history_stale_rowsets = new HashSet<>();
         def tablet_status = getTabletStatus(clusterName1, tablet_id)
         all_history_stale_rowsets.addAll(tablet_status["rowsets"])
@@ -212,6 +219,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         sql """insert into test values (6, '{"a" : 1111.11111}')""" //[7-7]
         sleep(2000)
 
+        sql """select * from test""" // sync rowsets on source cluster
         tablet_status = getTabletStatus(clusterName1, tablet_id)
         all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 
@@ -235,6 +243,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         sql """insert into test values (9, '{"a" : "11111"}')"""     // [10-10]
         sql """insert into test values (10, '{"a" : 1111111111}')""" // [11-11]
 
+        sql """select * from test""" // sync rowsets on source cluster
         tablet_status = getTabletStatus(clusterName1, tablet_id)
         all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 
@@ -251,6 +260,7 @@ suite('test_query_driven_warmup_add_rowset_too_late', 'docker') {
         sql """insert into test values (11, '{"a" : 1111111111}')""" // [12-12]
         sleep(1000)
 
+        sql """select * from test""" // sync rowsets on source cluster
         tablet_status = getTabletStatus(clusterName1, tablet_id)
         all_history_stale_rowsets.addAll(tablet_status["rowsets"])
 

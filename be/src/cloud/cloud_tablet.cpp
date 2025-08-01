@@ -278,35 +278,41 @@ WarmUpState CloudTablet::get_rowset_warmup_state(RowsetId rowset_id) {
     if (_rowset_warm_up_states.find(rowset_id) == _rowset_warm_up_states.end()) {
         return WarmUpState::NONE;
     }
-    return _rowset_warm_up_states[rowset_id];
+    return _rowset_warm_up_states[rowset_id].first;
 }
 
-bool CloudTablet::add_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
+bool CloudTablet::add_rowset_warmup_state(RowsetSharedPtr rowset, WarmUpState state) {
     std::lock_guard wlock(_meta_lock);
-    if (_rowset_warm_up_states.find(rowset_id) != _rowset_warm_up_states.end()) {
-        return false;
-    }
+    return add_rowset_warmup_state_unlocked(rowset, state);
+}
+
+bool CloudTablet::add_rowset_warmup_state_unlocked(RowsetSharedPtr rowset, WarmUpState state) {
     if (state == WarmUpState::TRIGGERED_BY_JOB) {
         g_file_cache_warm_up_triggered_by_job_num << 1;
     } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
         g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
     }
-    _rowset_warm_up_states[rowset_id] = state;
+    if (_rowset_warm_up_states.find(rowset->rowset_id()) != _rowset_warm_up_states.end()) {
+        return false;
+    }
+    _rowset_warm_up_states[rowset->rowset_id()] = std::make_pair(state, rowset->num_segments());
     return true;
 }
 
-bool CloudTablet::update_rowset_warmup_state(RowsetId rowset_id, WarmUpState state) {
+bool CloudTablet::complete_rowset_segment_warmup(RowsetId rowset_id, Status status) {
     std::lock_guard wlock(_meta_lock);
     if (_rowset_warm_up_states.find(rowset_id) == _rowset_warm_up_states.end()) {
         return false;
     }
-    _rowset_warm_up_states[rowset_id] = state;
+    if (status.ok()) {
+        _rowset_warm_up_states[rowset_id].second--;
+        if (_rowset_warm_up_states[rowset_id].second == 0) {
+            _rowset_warm_up_states[rowset_id].first = WarmUpState::DONE;
+        }
+    } else {
+        _rowset_warm_up_states.erase(rowset_id);
+    }
     return true;
-}
-
-void CloudTablet::erase_rowset_warmup_state(RowsetId rowset_id) {
-    std::lock_guard wlock(_meta_lock);
-    _rowset_warm_up_states.erase(rowset_id);
 }
 
 void CloudTablet::warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
@@ -396,18 +402,14 @@ void CloudTablet::warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_o
     }
     if (download_task_submitted) {
         VLOG_DEBUG << "warm up rowset " << rowset->version() << " triggerd by sync rowset";
-        g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
-        _rowset_warm_up_states[rowset->rowset_id()] = WarmUpState::TRIGGERED_BY_SYNC_ROWSET;
+        add_rowset_warmup_state_unlocked(rowset, WarmUpState::TRIGGERED_BY_SYNC_ROWSET);
     }
 }
 
 bool CloudTablet::is_warm_up_conflict_with_compaction() {
-    if (!config::enable_query_driven_warmup) {
-        return false;
-    }
     std::shared_lock rdlock(_meta_lock);
     for (auto& [rowset_id, state] : _rowset_warm_up_states) {
-        if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
+        if (state.first != WarmUpState::DONE) {
             return true;
         }
     }
@@ -425,14 +427,8 @@ void CloudTablet::warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool de
 
         g_file_cache_query_driven_warmup_delayed_rowset_add_num << 1;
     }
-    std::unique_lock<std::shared_mutex> meta_lock(_meta_lock);
-    if (status.ok()) {
-        VLOG_DEBUG << "warm up rowset " << rowset->version() << " done";
-        _rowset_warm_up_states[rowset->rowset_id()] = WarmUpState::DONE;
-    } else {
-        VLOG_DEBUG << "warm up rowset " << rowset->version() << " failed, error: " << status;
-        _rowset_warm_up_states.erase(rowset->rowset_id());
-    }
+    VLOG_DEBUG << "warm up rowset " << rowset->version() << " done";
+    complete_rowset_segment_warmup(rowset->rowset_id(), status);
     if (config::enable_query_driven_warmup && delay_add_rowset) {
         LOG(INFO) << "warm up completed, rowset: " << rowset->rowset_id()
                   << ", version: " << rowset->version();
