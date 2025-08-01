@@ -267,6 +267,7 @@ suite('test_query_driven_warmup_add_rowset_fail_and_recycle', 'docker') {
         // switch to read cluster, trigger a sync rowset
         sql """use @${clusterName2}"""
         qt_sql """select * from test""" // will sync [2-11] and [12-12] but [2-6] is not added yet
+        sleep(1000)
         assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 13)
         // injection only execute once, [2-11] is added
         assertEquals(2, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))

@@ -68,16 +68,20 @@ bvar::LatencyRecorder g_base_compaction_get_delete_bitmap_lock_time_ms(
 bvar::Adder<int64_t> g_unused_rowsets_count("unused_rowsets_count");
 bvar::Adder<int64_t> g_unused_rowsets_bytes("unused_rowsets_bytes");
 
+bvar::Adder<uint64_t> g_file_cache_warm_up_segment_complete_num(
+        "file_cache_warm_up_segment_complete_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_complete_num(
+        "file_cache_warm_up_rowset_complete_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_triggered_by_job_num(
+        "file_cache_warm_up_rowset_triggered_by_job_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_triggered_by_sync_rowset_num(
+        "file_cache_warm_up_rowset_triggered_by_sync_rowset_num");
 bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_num(
         "file_cache_query_driven_warmup_delayed_rowset_num");
 bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_num");
 bvar::Adder<uint64_t> g_file_cache_query_driven_warmup_delayed_rowset_add_failure_num(
         "file_cache_query_driven_warmup_delayed_rowset_add_failure_num");
-bvar::Adder<uint64_t> g_file_cache_warm_up_triggered_by_job_num(
-        "file_cache_warm_up_triggered_by_job_num");
-bvar::Adder<uint64_t> g_file_cache_warm_up_triggered_by_sync_rowset_num(
-        "file_cache_warm_up_triggered_by_sync_rowset_num");
 
 static constexpr int LOAD_INITIATOR_ID = -1;
 
@@ -287,13 +291,13 @@ bool CloudTablet::add_rowset_warmup_state(RowsetMetaSharedPtr rowset, WarmUpStat
 }
 
 bool CloudTablet::add_rowset_warmup_state_unlocked(RowsetMetaSharedPtr rowset, WarmUpState state) {
-    if (state == WarmUpState::TRIGGERED_BY_JOB) {
-        g_file_cache_warm_up_triggered_by_job_num << 1;
-    } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
-        g_file_cache_warm_up_triggered_by_sync_rowset_num << 1;
-    }
     if (_rowset_warm_up_states.find(rowset->rowset_id()) != _rowset_warm_up_states.end()) {
         return false;
+    }
+    if (state == WarmUpState::TRIGGERED_BY_JOB) {
+        g_file_cache_warm_up_rowset_triggered_by_job_num << 1;
+    } else if (state == WarmUpState::TRIGGERED_BY_SYNC_ROWSET) {
+        g_file_cache_warm_up_rowset_triggered_by_sync_rowset_num << 1;
     }
     _rowset_warm_up_states[rowset->rowset_id()] = std::make_pair(state, rowset->num_segments());
     return true;
@@ -305,13 +309,17 @@ WarmUpState CloudTablet::complete_rowset_segment_warmup(RowsetId rowset_id, Stat
         return WarmUpState::NONE;
     }
     if (status.ok()) {
+        g_file_cache_warm_up_segment_complete_num << 1;
         _rowset_warm_up_states[rowset_id].second--;
         if (_rowset_warm_up_states[rowset_id].second == 0) {
+            g_file_cache_warm_up_rowset_complete_num << 1;
             _rowset_warm_up_states[rowset_id].first = WarmUpState::DONE;
         }
         return _rowset_warm_up_states[rowset_id].first;
     }
     // !status.ok()
+    g_file_cache_warm_up_segment_complete_num << 1;
+    g_file_cache_warm_up_rowset_complete_num << 1;
     _rowset_warm_up_states.erase(rowset_id);
     return WarmUpState::NONE;
 }

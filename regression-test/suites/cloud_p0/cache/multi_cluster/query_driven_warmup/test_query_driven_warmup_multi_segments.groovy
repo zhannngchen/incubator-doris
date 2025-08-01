@@ -16,10 +16,11 @@
 // under the License.
 
 import org.apache.doris.regression.suite.ClusterOptions
+import org.apache.doris.regression.util.Http
 import org.apache.doris.regression.util.NodeType
 import groovy.json.JsonSlurper
 
-suite('test_query_driven_warmup_basic', 'docker') {
+suite('test_query_driven_warmup_multi_segments', 'docker') {
     def options = new ClusterOptions()
     options.feConfigs += [
         'cloud_cluster_check_interval_second=1',
@@ -29,6 +30,9 @@ suite('test_query_driven_warmup_basic', 'docker') {
         'file_cache_enter_disk_resource_limit_mode_percent=99',
         'enable_evict_file_cache_in_advance=false',
         'block_file_cache_monitor_interval_sec=1',
+        'tablet_rowset_stale_sweep_time_sec=0',
+        'vacuum_stale_rowsets_interval_s=10',
+        'doris_scanner_row_bytes=1',
     ]
     options.enableDebugPoints()
     options.cloudMode = true
@@ -89,65 +93,54 @@ suite('test_query_driven_warmup_basic', 'docker') {
         return getBrpcMetrics(ip, port, name)
     }
 
-    def injectAddOverlapRowsetSleep = {cluster, sleep_s ->
+    def injectS3FileReadSlow = {cluster, sleep_s ->
         def backends = sql """SHOW BACKENDS"""
         def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
-        def injectName = 'CloudTablet.warm_up_done_cb.inject_sleep_s'
+        def injectName = 'S3FileReader::read_at_impl.io_slow'
         for (be in cluster_bes) {
             def ip = be[1]
             def port = be[4]
-            GetDebugPoint().enableDebugPoint(ip, port as int, NodeType.BE, injectName, [sleep:sleep_s])
+            GetDebugPoint().enableDebugPoint(ip, port as int, NodeType.BE, injectName, [sleep:sleep_s, execute:1])
         }
     }
 
-    def getProfileList = {ip, port, user, pwd ->
-        def conn = new URL("http://${ip}:${port}/rest/v1/query_profile").openConnection()
-        conn.setRequestMethod("GET")
-        def encoding = Base64.getEncoder().encodeToString((user + ":" + (pwd == null ? "" : pwd)).getBytes("UTF-8"))
-        conn.setRequestProperty("Authorization", "Basic ${encoding}")
-        return conn.getInputStream().getText()
-    }
+    def getTabletStatus = { cluster, tablet_id, rowsetIndex, lastRowsetSegmentNum, enableAssert = false ->
+        def backends = sql """SHOW BACKENDS"""
+        def cluster_bes = backends.findAll { it[19].contains("""\"compute_group_name\" : \"${cluster}\"""") }
+        assert cluster_bes.size() > 0, "No backend found for cluster ${cluster}"
+        def be = cluster_bes[0]
+        def ip = be[1]
+        def port = be[4]
+        StringBuilder sb = new StringBuilder();
+        sb.append("curl -X GET http://${ip}:${port}")
+        sb.append("/api/compaction/show?tablet_id=")
+        sb.append(tablet_id)
 
-    def getProfile = { ip, port, user, pwd, id ->
-        def conn = new URL("http://${ip}:${port}/api/profile/text/?query_id=$id").openConnection()
-        conn.setRequestMethod("GET")
-        def encoding = Base64.getEncoder().encodeToString((user + ":" + (pwd == null ? "" : pwd)).getBytes("UTF-8"))
-        conn.setRequestProperty("Authorization", "Basic ${encoding}")
-        return conn.getInputStream().getText()
-    }
-
-    def verifyProfileContent = {stmt ->
-        def fes = sql_return_maparray("SHOW FRONTENDS")
-        // Get the master frontend information
-        def masterFE = fes.find { it['IsMaster'] == "true" }
-        assert masterFE != null, "No master frontend found"
-        def masterHost = masterFE['Host']
-        def masterPort = masterFE['HttpPort']
-
-        // Sleep 500ms to wait for the profile collection
-        Thread.sleep(500)
-
-        // Get profile list by using getProfileList
-        List profileData = new JsonSlurper().parseText(getProfileList(masterHost, masterPort, 'root', null)).data.rows
-        // Find the profile id for the query that we just emitted
-        String profileId = ""
-        for (def profileItem : profileData) {
-            if (profileItem["Sql Statement"].toString().contains(stmt)) {
-                profileId = profileItem["Profile ID"].toString()
-                logger.info("Profile ID of ${stmt} is ${profileId}")
-                break
-            }
+        String command = sb.toString()
+        logger.info(command)
+        def process = command.execute()
+        def code = process.waitFor()
+        def out = process.getText()
+        logger.info("Get tablet status:  =" + code + ", out=" + out)
+        assertEquals(code, 0)
+        def tabletStatus = parseJson(out.trim())
+        assert tabletJson.rowsets instanceof List
+        if (outputRowsets != null) {
+            outputRowsets.addAll(tabletJson.rowsets)
         }
-        if (profileId == "" || profileId == null) {
-            logger.error("Profile ID of ${stmt} is not found")
-            return false
-        }
-        // Get profile content by using getProfile
-        def String profileContent = getProfile(masterHost, masterPort, 'root', null, profileId).toString()
-        logger.info("Profile content of ${stmt} is\n${profileContent}")
 
-        // For non-mow table, will not read data from remote
-        assertTrue(profileContent.contains("- BytesScannedFromRemote: 0"))
+        assertTrue(tabletJson.rowsets.size() >= rowsetIndex)
+        def rowset = tabletJson.rowsets.get(rowsetIndex - 1)
+        logger.info("rowset: ${rowset}")
+        int start_index = rowset.indexOf("]")
+        int end_index = rowset.indexOf("DATA")
+        def segmentNumStr = rowset.substring(start_index + 1, end_index).trim()
+        logger.info("segmentNumStr: ${segmentNumStr}")
+        if (enableAssert) {
+            assertEquals(lastRowsetSegmentNum, Integer.parseInt(segmentNumStr))
+        } else {
+            return lastRowsetSegmentNum == Integer.parseInt(segmentNumStr);
+        }
     }
 
     docker(options) {
@@ -185,41 +178,51 @@ suite('test_query_driven_warmup_basic', 'docker') {
         clearFileCacheOnAllBackends()
         sleep(15000)
 
-        sql """insert into test values (1, '{"a" : 1.0}')"""
-        sql """insert into test values (2, '{"a" : 111.1111}')"""
-        sql """insert into test values (3, '{"a" : "11111"}')"""
-        sql """insert into test values (4, '{"a" : 1111111111}')"""
-        sql """insert into test values (5, '{"a" : 1111.11111}')"""
+        def tablets = sql_return_maparray """ show tablets from test; """
+        logger.info("tablets: " + tablets)
+        assertEquals(1, tablets.size())
+        def tablet = tablets[0]
+        String tablet_id = tablet.TabletId
 
-        // switch to read cluster, trigger a sync rowset
-        sql """use @${clusterName2}"""
-        qt_sql """select * from test"""
-        assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 5)
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_num"))
+        GetDebugPoint().enableDebugPointForAllBEs("MemTable.need_flush")
+        try {
+            // load 1
+            streamLoad {
+                table "${testTable}"
+                set 'column_separator', ','
+                set 'compress_type', 'GZ'
+                file 'test_schema_change_add_key_column.csv.gz'
+                time 10000 // limit inflight 10s
 
-        // switch to source cluster and trigger compaction
-        sql """use @${clusterName1}"""
-        trigger_and_wait_compaction("test", "cumulative")
-        sql """insert into test values (6, '{"a" : 1111.11111}')"""
-        sleep(2000)
+                check { res, exception, startTime, endTime ->
+                    if (exception != null) {
+                        throw exception
+                    }
+                    def json = parseJson(res)
+                    assertEquals("success", json.Status.toLowerCase())
+                    assertEquals(8192, json.NumberTotalRows)
+                    assertEquals(0, json.NumberFilteredRows)
+                }
+            }
+            sql "sync"
+            def rowCount1 = sql """ select count() from ${testTable}; """
+            logger.info("rowCount1: ${rowCount1}")
+            // check generate 3 segments
+            getTabletStatus(clusterName1, tablet_id, 2, 3, true)
 
-        // switch to read cluster, trigger a sync rowset
-        sql """use @${clusterName2}"""
-        sql """set enable_profile=true"""
-
-        // inject sleep on warm_up_done_cb, to avoid the warmup complete before query
-        injectAddOverlapRowsetSleep(clusterName2, 3);
-        qt_sql """select * from test"""
-        // wait until the injection complete
-        sleep(3000)
-
-        assertTrue(getBrpcMetricsByCluster(clusterName2, "file_cache_download_submitted_num") >= 7)
-        assertEquals(7, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_triggered_by_sync_rowset_num"))
-        assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_num"))
-        assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_num"))
-        assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_query_driven_warmup_delayed_rowset_add_failure_num"))
-        // due to a bug of profile, skip the check for now
-        // verifyProfileContent("select * from test");
+            // switch to read cluster, trigger a sync rowset
+            injectS3FileReadSlow(clusterName2, 10)
+            sql """use @${clusterName2}"""
+            qt_sql """select * from test"""
+            sleep(1000)
+            assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_triggered_by_sync_rowset_num"))
+            assertEquals(2, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_segment_complete_num"))
+            assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_complete_num"))
+            sleep(10000) // wait until the inject complete
+            assertEquals(3, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_segment_complete_num"))
+            assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_complete_num"))
+        } finally {
+            GetDebugPoint().clearDebugPointsForAllBEs()
+        }
     }
 }
