@@ -125,15 +125,13 @@ suite('test_query_driven_warmup_multi_segments', 'docker') {
         def out = process.getText()
         logger.info("Get tablet status:  =" + code + ", out=" + out)
         assertEquals(code, 0)
-        def tabletStatus = parseJson(out.trim())
-        assert tabletJson.rowsets instanceof List
-        if (outputRowsets != null) {
-            outputRowsets.addAll(tabletJson.rowsets)
-        }
 
+        def tabletJson = parseJson(out.trim())
+        assert tabletJson.rowsets instanceof List
         assertTrue(tabletJson.rowsets.size() >= rowsetIndex)
         def rowset = tabletJson.rowsets.get(rowsetIndex - 1)
         logger.info("rowset: ${rowset}")
+
         int start_index = rowset.indexOf("]")
         int end_index = rowset.indexOf("DATA")
         def segmentNumStr = rowset.substring(start_index + 1, end_index).trim()

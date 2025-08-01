@@ -308,6 +308,7 @@ WarmUpState CloudTablet::complete_rowset_segment_warmup(RowsetId rowset_id, Stat
     if (_rowset_warm_up_states.find(rowset_id) == _rowset_warm_up_states.end()) {
         return WarmUpState::NONE;
     }
+    VLOG_DEBUG << "complete rowset segment warmup for rowset " << rowset_id << ", " << status;
     if (status.ok()) {
         g_file_cache_warm_up_segment_complete_num << 1;
         _rowset_warm_up_states[rowset_id].second--;
