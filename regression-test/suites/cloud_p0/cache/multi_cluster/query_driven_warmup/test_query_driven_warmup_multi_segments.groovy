@@ -37,6 +37,8 @@ suite('test_query_driven_warmup_multi_segments', 'docker') {
     options.enableDebugPoints()
     options.cloudMode = true
 
+    def testTable = "test"
+
     def clearFileCache = {ip, port ->
         def url = "http://${ip}:${port}/api/file_cache?op=clear&sync=true"
         def response = new URL(url).text
@@ -165,14 +167,18 @@ suite('test_query_driven_warmup_multi_segments', 'docker') {
 
         // Ensure we are in source cluster
         sql """use @${clusterName1}"""
-
-        sql """
-            create table test (
-                col0 int not null,
-                col1 variant NOT NULL
-            ) DUPLICATE KEY(`col0`)
-            DISTRIBUTED BY HASH(col0) BUCKETS 1
-            PROPERTIES ("file_cache_ttl_seconds" = "3600", "disable_auto_compaction" = "true");
+        sql """ DROP TABLE IF EXISTS ${testTable} """
+        sql """ CREATE TABLE IF NOT EXISTS ${testTable} (
+            `k1` int(11) NULL,
+            `k2` int(11) NULL,
+            `v3` int(11) NULL,
+            `v4` int(11) NULL
+        ) unique KEY(`k1`, `k2`)
+        DISTRIBUTED BY HASH(`k1`) BUCKETS 1
+        PROPERTIES (
+            "replication_num" = "1",
+            "disable_auto_compaction" = "true"
+            );
         """
 
         clearFileCacheOnAllBackends()
