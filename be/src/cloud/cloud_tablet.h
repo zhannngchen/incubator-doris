@@ -296,7 +296,7 @@ public:
                                  bool delay_add_rowset = false);
     WarmUpState get_rowset_warmup_state(RowsetId rowset_id);
     bool add_rowset_warmup_state(RowsetMetaSharedPtr rowset, WarmUpState state);
-    bool complete_rowset_segment_warmup(RowsetId rowset_id, Status status);
+    WarmUpState complete_rowset_segment_warmup(RowsetId rowset_id, Status status);
 
     bool is_warm_up_conflict_with_compaction();
 

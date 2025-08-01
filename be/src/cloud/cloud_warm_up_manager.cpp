@@ -177,9 +177,9 @@ void CloudWarmUpManager::handle_jobs() {
                             storage_resource.value()->remote_segment_path(*rs, seg_id),
                             rs->segment_file_size(seg_id), storage_resource.value()->fs,
                             expiration_time, wait, [tablet, rs](Status st) {
-                                if (!tablet->complete_rowset_segment_warmup(rs->rowset_id(), st)) {
-                                    LOG(WARNING) << "set warm up state to DONE failed, the rowset "
-                                                 << rs->rowset_id() << " not exist";
+                                if (tablet->complete_rowset_segment_warmup(rs->rowset_id(), st) ==
+                                    WarmUpState::DONE) {
+                                    VLOG_DEBUG << "warmup rowset " << rs->version() << " completed";
                                 }
                             });
 

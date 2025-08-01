@@ -299,20 +299,21 @@ bool CloudTablet::add_rowset_warmup_state_unlocked(RowsetMetaSharedPtr rowset, W
     return true;
 }
 
-bool CloudTablet::complete_rowset_segment_warmup(RowsetId rowset_id, Status status) {
+WarmUpState CloudTablet::complete_rowset_segment_warmup(RowsetId rowset_id, Status status) {
     std::lock_guard wlock(_meta_lock);
     if (_rowset_warm_up_states.find(rowset_id) == _rowset_warm_up_states.end()) {
-        return false;
+        return WarmUpState::NONE;
     }
     if (status.ok()) {
         _rowset_warm_up_states[rowset_id].second--;
         if (_rowset_warm_up_states[rowset_id].second == 0) {
             _rowset_warm_up_states[rowset_id].first = WarmUpState::DONE;
         }
-    } else {
-        _rowset_warm_up_states.erase(rowset_id);
+        return _rowset_warm_up_states[rowset_id].first;
     }
-    return true;
+    // !status.ok()
+    _rowset_warm_up_states.erase(rowset_id);
+    return WarmUpState::NONE;
 }
 
 void CloudTablet::warm_up_rowset_unlocked(RowsetSharedPtr rowset, bool version_overlap,
@@ -425,14 +426,23 @@ void CloudTablet::warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool de
                     .tag("tablet_id", tablet_id());
             std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
         });
-
-        g_file_cache_query_driven_warmup_delayed_rowset_add_num << 1;
     }
     VLOG_DEBUG << "warm up rowset " << rowset->version() << " done";
-    complete_rowset_segment_warmup(rowset->rowset_id(), status);
+    auto res = complete_rowset_segment_warmup(rowset->rowset_id(), status);
+    if (res != WarmUpState::DONE && res != WarmUpState::NONE) {
+        if (res == WarmUpState::TRIGGERED_BY_JOB) {
+            LOG(WARNING) << "should not happen, rowset: " << rowset->version()
+                         << " warm up is triggered by warm up job but use "
+                            "CloudTablet::warm_up_done_cb as done callback";
+        }
+        // none success or failure
+        return;
+    }
     if (config::enable_query_driven_warmup && delay_add_rowset) {
+        g_file_cache_query_driven_warmup_delayed_rowset_add_num << 1;
         LOG(INFO) << "warm up completed, rowset: " << rowset->rowset_id()
                   << ", version: " << rowset->version();
+        std::unique_lock<std::shared_mutex> meta_lock(_meta_lock);
         for (auto [ver, rs] : _rs_version_map) {
             // e.g. ver = [5-10]
             // if rowset->version() is [5-8], it should not be added
@@ -449,6 +459,7 @@ void CloudTablet::warm_up_done_cb(RowsetSharedPtr rowset, Status status, bool de
                 return;
             }
         }
+        // no matter warmup success or failed, we should add rowset to tablet meta
         add_rowsets({rowset}, /*version_overlap*/ true, meta_lock, /*warmup_delta_data*/ false);
     }
 }
