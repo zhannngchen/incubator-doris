@@ -216,13 +216,17 @@ suite('test_query_driven_warmup_multi_segments', 'docker') {
 
             // switch to read cluster, trigger a sync rowset
             injectS3FileReadSlow(clusterName2, 10)
-            sql """use @${clusterName2}"""
-            qt_sql """select * from test"""
+            // the query will be blocked by the injection, we call it async
+            def future = thread {
+                sql """use @${clusterName2}"""
+                sql """select * from test"""
+            }
             sleep(1000)
             assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_triggered_by_sync_rowset_num"))
             assertEquals(2, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_segment_complete_num"))
             assertEquals(0, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_complete_num"))
-            sleep(10000) // wait until the inject complete
+
+            future.get()
             assertEquals(3, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_segment_complete_num"))
             assertEquals(1, getBrpcMetricsByCluster(clusterName2, "file_cache_warm_up_rowset_complete_num"))
         } finally {
