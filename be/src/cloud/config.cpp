@@ -98,6 +98,8 @@ DEFINE_mDouble(standby_compaction_version_ratio, "0.8");
 
 DEFINE_mBool(enable_warm_up_rowset_sync_wait_on_compaction, "false");
 
+DEFINE_mInt64(warm_up_rowset_sync_wait_min_timeout, "10");
+
 DEFINE_mInt64(warm_up_rowset_sync_wait_max_timeout, "120");
 #include "common/compile_check_end.h"
 } // namespace doris::config
