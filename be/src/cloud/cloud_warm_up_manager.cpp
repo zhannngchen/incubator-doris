@@ -596,8 +596,8 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_t
         brpc_stub->warm_up_rowset(&cntl, &request, &response, nullptr);
         if (sync_wait_timeout_ms > 0) {
             auto cost_ms = watch.elapsed_time_microseconds();
-            VLOG_DEBUG << "warm up rowset wait for compaction: " << cost_ms;
-            g_file_cache_warm_up_rowset_wait_for_compaction_latency << cost_ms;
+            VLOG_DEBUG << "warm up rowset wait for compaction: " << cost_us << " us";
+            g_file_cache_warm_up_rowset_wait_for_compaction_latency << cost_us;
         }
     }
 }

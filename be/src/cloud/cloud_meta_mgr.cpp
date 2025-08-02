@@ -1040,8 +1040,8 @@ Status CloudMetaMgr::commit_rowset(RowsetMeta& rs_meta, const std::string& job_i
         timeout_ms = std::min(
                 std::max(static_cast<int64_t>(static_cast<double>(rs_meta.data_disk_size()) /
                                               (speed_mbps * 1024 * 1024) * safety_factor * 1000),
-                         config::warm_up_rowset_sync_wait_min_timeout),
-                config::warm_up_rowset_sync_wait_max_timeout);
+                         config::warm_up_rowset_sync_wait_min_timeout_ms),
+                config::warm_up_rowset_sync_wait_max_timeout_ms);
     }
     auto& manager = ExecEnv::GetInstance()->storage_engine().to_cloud().cloud_warm_up_manager();
     VLOG_DEBUG << "warm up rowset: " << rs_meta.version() << ", job_id: " << job_id
