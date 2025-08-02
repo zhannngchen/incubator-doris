@@ -76,6 +76,9 @@ bvar::Status<int64_t> g_file_cache_warm_up_rowset_last_call_unix_ts(
         "file_cache_warm_up_rowset_last_call_unix_ts", 0);
 bvar::Adder<uint64_t> file_cache_warm_up_failed_task_num("file_cache_warm_up", "failed_task_num");
 
+bvar::LatencyRecorder g_file_cache_warm_up_rowset_wait_for_compaction_latency(
+        "file_cache_warm_up_rowset_wait_for_compaction_latency");
+
 CloudWarmUpManager::CloudWarmUpManager(CloudStorageEngine& engine) : _engine(engine) {
     _download_thread = std::thread(&CloudWarmUpManager::handle_jobs, this);
 }
@@ -583,8 +586,17 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_t
         }
 
         brpc::Controller cntl;
+        if (sync_wait_timeout_ms > 0) {
+            cntl.set_timeout_ms(sync_wait_timeout_ms + 1000);
+        }
         PWarmUpRowsetResponse response;
+        MonotonicStopWatch watch;
+        watch.start();
         brpc_stub->warm_up_rowset(&cntl, &request, &response, nullptr);
+        if (sync_wait_timeout_ms > 0) {
+            g_file_cache_warm_up_rowset_wait_for_compaction_latency
+                    << watch.elapsed_time_microseconds();
+        }
     }
 }
 

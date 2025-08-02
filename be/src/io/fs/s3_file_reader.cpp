@@ -130,6 +130,14 @@ Status S3FileReader::read_at_impl(size_t offset, Slice result, size_t* bytes_rea
 
     LIMIT_REMOTE_SCAN_IO(bytes_read);
 
+    DBUG_EXECUTE_IF("S3FileReader::read_at_impl.io_slow", {
+        auto sleep_time = dp->param("sleep", 3);
+        LOG_INFO("S3FileReader::read_at_impl.io_slow inject sleep {} s", sleep_time)
+                .tag("bucket", _bucket)
+                .tag("key", _key);
+        std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+    });
+
     int total_sleep_time = 0;
     while (retry_count <= max_retries) {
         *bytes_read = 0;

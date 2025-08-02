@@ -151,6 +151,10 @@ bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_request_to_handle_slow_count(
         "file_cache_warm_up_rowset_request_to_handle_slow_count");
 bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_handle_to_finish_slow_count(
         "file_cache_warm_up_rowset_handle_to_finish_slow_count");
+bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_wait_for_compaction_num(
+        "file_cache_warm_up_rowset_wait_for_compaction_num");
+bvar::Adder<uint64_t> g_file_cache_warm_up_rowset_wait_for_compaction_timeout_num(
+        "file_cache_warm_up_rowset_wait_for_compaction_timeout_num");
 
 void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* controller
                                               [[maybe_unused]],
@@ -161,10 +165,11 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
     std::shared_ptr<bthread::CountdownEvent> wait = nullptr;
     timespec due_time;
     if (request->has_sync_wait_timeout_ms() && request->sync_wait_timeout_ms() > 0) {
+        g_file_cache_warm_up_rowset_wait_for_compaction_num << 1;
         wait = std::make_shared<bthread::CountdownEvent>(0);
 
         int64_t start_time_ms;
-        if (request.has_unix_ts_us()) {
+        if (request->has_unix_ts_us()) {
             start_time_ms = request->unix_ts_us() / 1000;
         } else {
             auto now = std::chrono::system_clock::now();
@@ -376,6 +381,7 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
         }
     }
     if (wait && wait->timed_wait(due_time)) {
+        g_file_cache_warm_up_rowset_wait_for_compaction_timeout_num << 1;
         LOG_WARNING("Warm up {} rowsets take a long time", request->rowset_metas().size());
     }
 }
