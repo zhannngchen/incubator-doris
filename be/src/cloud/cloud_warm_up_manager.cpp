@@ -520,6 +520,7 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_t
 
     PWarmUpRowsetRequest request;
     request.add_rowset_metas()->CopyFrom(rs_meta.get_rowset_pb());
+    VLOG_INFO << "set_unix_ts_us: " << now_ts;
     request.set_unix_ts_us(now_ts);
     request.set_sync_wait_timeout_ms(sync_wait_timeout_ms);
     for (auto& replica : replicas) {
@@ -594,8 +595,9 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_t
         watch.start();
         brpc_stub->warm_up_rowset(&cntl, &request, &response, nullptr);
         if (sync_wait_timeout_ms > 0) {
-            g_file_cache_warm_up_rowset_wait_for_compaction_latency
-                    << watch.elapsed_time_microseconds();
+            auto cost_ms = watch.elapsed_time_microseconds();
+            VLOG_DEBUG << "warm up rowset wait for compaction: " << cost_ms;
+            g_file_cache_warm_up_rowset_wait_for_compaction_latency << cost_ms;
         }
     }
 }

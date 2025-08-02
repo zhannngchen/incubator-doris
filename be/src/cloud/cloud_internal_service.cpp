@@ -205,6 +205,7 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                                     .count();
         g_file_cache_warm_up_rowset_last_handle_unix_ts.set_value(handle_ts);
         int64_t request_ts = request->has_unix_ts_us() ? request->unix_ts_us() : 0;
+        VLOG_DEBUG << "request_ts: " << request_ts;
         g_file_cache_warm_up_rowset_request_to_handle_latency << (handle_ts - request_ts);
         if (request_ts > 0 && handle_ts - request_ts > config::warm_up_rowset_slow_log_ms * 1000) {
             g_file_cache_warm_up_rowset_request_to_handle_slow_count << 1;
@@ -382,7 +383,7 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
     }
     if (wait && wait->timed_wait(due_time)) {
         g_file_cache_warm_up_rowset_wait_for_compaction_timeout_num << 1;
-        LOG_WARNING("Warm up {} rowsets take a long time", request->rowset_metas().size());
+        LOG_WARNING("warm up {} rowsets take a long time", request->rowset_metas().size());
     }
 }
 
