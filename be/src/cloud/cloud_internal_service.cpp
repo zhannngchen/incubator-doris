@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include <bthread/countdown_event.h>
+
 #include "cloud/cloud_internal_service.h"
 
 #include "cloud/cloud_storage_engine.h"
@@ -156,6 +158,26 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                                               PWarmUpRowsetResponse* response,
                                               google::protobuf::Closure* done) {
     brpc::ClosureGuard closure_guard(done);
+    std::shared_ptr<bthread::CountdownEvent> wait = nullptr;
+    timespec due_time;
+    if (request->has_sync_wait_timeout_ms() && request->sync_wait_timeout_ms() > 0) {
+        wait = std::make_shared<bthread::CountdownEvent>(0);
+
+        int64_t start_time_ms;
+        if (request.has_unix_ts_us()) {
+            start_time_ms = request->unix_ts_us() / 1000;
+        } else {
+            auto now = std::chrono::system_clock::now();
+            auto duration = now.time_since_epoch();
+            start_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        }
+
+        int64_t timeout_ms = request->sync_wait_timeout_ms();
+        int64_t due_time_ms = start_time_ms + timeout_ms;
+        due_time.tv_sec = due_time_ms / 1000;
+        due_time.tv_nsec = (due_time_ms % 1000) * 1000000;
+    }
+
     for (auto& rs_meta_pb : request->rowset_metas()) {
         RowsetMeta rs_meta;
         rs_meta.init_from_pb(rs_meta_pb);
@@ -194,9 +216,10 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
         }
 
         for (int64_t segment_id = 0; segment_id < rs_meta.num_segments(); segment_id++) {
-            auto download_done = [=, tablet_id = rs_meta.tablet_id(),
+            auto download_done = [&, tablet_id = rs_meta.tablet_id(),
                                   rowset_id = rs_meta.rowset_id().to_string(),
-                                  segment_size = rs_meta.segment_file_size(segment_id)](Status st) {
+                                  segment_size = rs_meta.segment_file_size(segment_id),
+                                  wait](Status st) {
                 if (st.ok()) {
                     g_file_cache_event_driven_warm_up_finished_segment_num << 1;
                     g_file_cache_event_driven_warm_up_finished_segment_size << segment_size;
@@ -225,6 +248,9 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                     LOG(WARNING) << "download segment failed, tablet_id: " << tablet_id
                                  << " rowset_id: " << rowset_id << ", error: " << st;
                 }
+                if (wait) {
+                    wait->signal();
+                }
             };
 
             io::DownloadFileMeta download_meta {
@@ -245,6 +271,9 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
             g_file_cache_event_driven_warm_up_submitted_segment_num << 1;
             g_file_cache_event_driven_warm_up_submitted_segment_size
                     << rs_meta.segment_file_size(segment_id);
+            if (wait) {
+                wait->add_count();
+            }
             _engine.file_cache_block_downloader().submit_download_task(download_meta);
 
             auto download_inverted_index = [&](std::string index_path, uint64_t idx_size) {
@@ -283,6 +312,9 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                         LOG(WARNING) << "download inverted index failed, tablet_id: " << tablet_id
                                      << " rowset_id: " << rowset_id << ", error: " << st;
                     }
+                    if (wait) {
+                        wait->signal();
+                    }
                 };
                 io::DownloadFileMeta download_meta {
                         .path = io::Path(index_path),
@@ -299,6 +331,10 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                 };
                 g_file_cache_event_driven_warm_up_submitted_index_num << 1;
                 g_file_cache_event_driven_warm_up_submitted_index_size << idx_size;
+
+                if (wait) {
+                    wait->add_count();
+                }
                 _engine.file_cache_block_downloader().submit_download_task(download_meta);
             };
 
@@ -338,6 +374,9 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                 }
             }
         }
+    }
+    if (wait && wait->timed_wait(due_time)) {
+        LOG_WARNING("Warm up {} rowsets take a long time", request->rowset_metas().size());
     }
 }
 
