@@ -520,7 +520,7 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_t
 
     PWarmUpRowsetRequest request;
     request.add_rowset_metas()->CopyFrom(rs_meta.get_rowset_pb());
-    VLOG_INFO << "set_unix_ts_us: " << now_ts;
+    VLOG_DEBUG << "set_unix_ts_us: " << now_ts;
     request.set_unix_ts_us(now_ts);
     request.set_sync_wait_timeout_ms(sync_wait_timeout_ms);
     for (auto& replica : replicas) {

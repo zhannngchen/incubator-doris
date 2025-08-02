@@ -167,20 +167,8 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
     if (request->has_sync_wait_timeout_ms() && request->sync_wait_timeout_ms() > 0) {
         g_file_cache_warm_up_rowset_wait_for_compaction_num << 1;
         wait = std::make_shared<bthread::CountdownEvent>(0);
-
-        int64_t start_time_ms;
-        if (request->has_unix_ts_us()) {
-            start_time_ms = request->unix_ts_us() / 1000;
-        } else {
-            auto now = std::chrono::system_clock::now();
-            auto duration = now.time_since_epoch();
-            start_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-        }
-
-        int64_t timeout_ms = request->sync_wait_timeout_ms();
-        int64_t due_time_ms = start_time_ms + timeout_ms;
-        due_time.tv_sec = due_time_ms / 1000;
-        due_time.tv_nsec = (due_time_ms % 1000) * 1000000;
+        VLOG_DEBUG << "sync_wait_timeout: " << request->sync_wait_timeout_ms() << " ms";
+        due_time = butil::milliseconds_from_now(request->sync_wait_timeout_ms());
     }
 
     for (auto& rs_meta_pb : request->rowset_metas()) {
