@@ -166,7 +166,6 @@ void CloudWarmUpManager::submit_download_tasks(io::Path path, int64_t file_size,
 }
 
 void CloudWarmUpManager::handle_jobs() {
-#ifndef BE_TEST
     constexpr int WAIT_TIME_SECONDS = 600;
     while (true) {
         std::shared_ptr<JobMeta> cur_job = nullptr;
@@ -284,7 +283,6 @@ void CloudWarmUpManager::handle_jobs() {
             }
         }
     }
-#endif
 }
 
 JobMeta::JobMeta(const TJobMeta& meta)
@@ -489,7 +487,7 @@ std::vector<TReplicaInfo> CloudWarmUpManager::get_replica_info(int64_t tablet_id
     return replicas;
 }
 
-void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta) {
+void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta, int64_t sync_wait_timeout_ms) {
     auto replicas = get_replica_info(rs_meta.tablet_id());
     if (replicas.empty()) {
         LOG(INFO) << "There is no need to warmup tablet=" << rs_meta.tablet_id()
@@ -504,6 +502,7 @@ void CloudWarmUpManager::warm_up_rowset(RowsetMeta& rs_meta) {
     PWarmUpRowsetRequest request;
     request.add_rowset_metas()->CopyFrom(rs_meta.get_rowset_pb());
     request.set_unix_ts_us(now_ts);
+    request.set_sync_wait_timeout_ms(sync_wait_timeout_ms);
     for (auto& replica : replicas) {
         // send sync request
         std::string host = replica.host;
