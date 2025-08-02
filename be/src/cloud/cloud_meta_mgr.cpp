@@ -1083,8 +1083,16 @@ Status CloudMetaMgr::commit_rowset(RowsetMeta& rs_meta, const std::string& job_i
         RETURN_IF_ERROR(
                 engine.get_schema_cloud_dictionary_cache().refresh_dict(rs_meta_pb.index_id()));
     }
+
+    int64_t timeout_ms = -1;
+    if (config::enable_warm_up_rowset_sync_wait_on_compaction && !job_id.empty()) {
+        // assume the download speed is 100MB/s
+        // we double the download time as timeout
+        timeout_ms = std::min(rs_meta.data_disk_size() / (100 * 1024 * 1024) * 2 * 1000,
+                              config::warm_up_rowset_sync_wait_max_timeout);
+    }
     auto& manager = ExecEnv::GetInstance()->storage_engine().to_cloud().cloud_warm_up_manager();
-    manager.warm_up_rowset(rs_meta);
+    manager.warm_up_rowset(rs_meta, timeout_ms);
     return st;
 }
 
