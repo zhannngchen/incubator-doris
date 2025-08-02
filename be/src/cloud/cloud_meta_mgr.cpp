@@ -1030,6 +1030,7 @@ Status CloudMetaMgr::commit_rowset(RowsetMeta& rs_meta, const std::string& job_i
                 engine.get_schema_cloud_dictionary_cache().refresh_dict(rs_meta_pb.index_id()));
     }
     auto& manager = ExecEnv::GetInstance()->storage_engine().to_cloud().cloud_warm_up_manager();
+    VLOG_DEBUG << "warm up rowset: " << rs_meta.version() << ", job_id: " << job_id;
     manager.warm_up_rowset(rs_meta);
     return st;
 }
