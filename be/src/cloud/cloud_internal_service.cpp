@@ -195,9 +195,15 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
             expiration_time = 0;
         }
 
+        if (!tablet->add_rowset_warmup_state(rs, WarmUpState::TRIGGERED_BY_JOB)) {
+            LOG(INFO) << "found duplicate warmup task for rowset " << rs->rowset_id()
+                      << ", skip it";
+            continue;
+        }
+
         for (int64_t segment_id = 0; segment_id < rs_meta.num_segments(); segment_id++) {
             auto download_done = [=, tablet_id = rs_meta.tablet_id(),
-                                  rowset_id = rs_meta.rowset_id().to_string(),
+                                  tablet_sptr = tablet rowset_id = rs_meta.rowset_id().to_string(),
                                   segment_size = rs_meta.segment_file_size(segment_id)](Status st) {
                 if (st.ok()) {
                     g_file_cache_event_driven_warm_up_finished_segment_num << 1;
@@ -226,6 +232,12 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                     g_file_cache_event_driven_warm_up_failed_segment_size << segment_size;
                     LOG(WARNING) << "download segment failed, tablet_id: " << tablet_id
                                  << " rowset_id: " << rowset_id << ", error: " << st;
+                }
+                VLOG_DEBUG << "warmup rowset " << rs_meta->version() << " segment " << segment_id
+                           << " completed";
+                if (tablet_sptr->complete_rowset_segment_warmup(rs_meta->rowset_id(), st) ==
+                    WarmUpState::DONE) {
+                    VLOG_DEBUG << "warmup rowset " << rs->version() << " completed";
                 }
             };
 
