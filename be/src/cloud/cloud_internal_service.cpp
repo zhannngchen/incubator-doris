@@ -19,6 +19,7 @@
 
 #include "cloud/cloud_storage_engine.h"
 #include "cloud/cloud_tablet_mgr.h"
+#include "cloud/cloud_warm_up_manager.h"
 #include "cloud/config.h"
 #include "io/cache/block_file_cache.h"
 #include "io/cache/block_file_cache_downloader.h"
@@ -195,15 +196,15 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
             expiration_time = 0;
         }
 
-        if (!tablet->add_rowset_warmup_state(rs, WarmUpState::TRIGGERED_BY_JOB)) {
-            LOG(INFO) << "found duplicate warmup task for rowset " << rs->rowset_id()
+        if (!tablet->add_rowset_warmup_state(rs_meta, WarmUpState::TRIGGERED_BY_JOB)) {
+            LOG(INFO) << "found duplicate warmup task for rowset " << rs_meta->rowset_id()
                       << ", skip it";
             continue;
         }
 
         for (int64_t segment_id = 0; segment_id < rs_meta.num_segments(); segment_id++) {
             auto download_done = [=, tablet_id = rs_meta.tablet_id(),
-                                  tablet_sptr = tablet rowset_id = rs_meta.rowset_id().to_string(),
+                                  rowset_id = rs_meta.rowset_id(),
                                   segment_size = rs_meta.segment_file_size(segment_id)](Status st) {
                 if (st.ok()) {
                     g_file_cache_event_driven_warm_up_finished_segment_num << 1;
@@ -235,9 +236,9 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                 }
                 VLOG_DEBUG << "warmup rowset " << rs_meta->version() << " segment " << segment_id
                            << " completed";
-                if (tablet_sptr->complete_rowset_segment_warmup(rs_meta->rowset_id(), st) ==
+                if (tablet->complete_rowset_segment_warmup(rs_meta->rowset_id(), st) ==
                     WarmUpState::DONE) {
-                    VLOG_DEBUG << "warmup rowset " << rs->version() << " completed";
+                    VLOG_DEBUG << "warmup rowset " << rs_meta->version() << "(" << rowet_id << ") completed";
                 }
             };
 
