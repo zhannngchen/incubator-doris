@@ -239,13 +239,14 @@ void CloudInternalServiceImpl::warm_up_rowset(google::protobuf::RpcController* c
                            << " completed";
                 if (tablet->complete_rowset_segment_warmup(rs_meta->rowset_id(), st) ==
                     WarmUpState::DONE) {
-                    VLOG_DEBUG << "warmup rowset " << rs_meta->version() << "(" << rowet_id << ") completed";
+                    VLOG_DEBUG << "warmup rowset " << rs_meta->version() << "(" << rowset_id
+                               << ") completed";
                 }
             };
 
             io::DownloadFileMeta download_meta {
                     .path = storage_resource.value()->remote_segment_path(*(rs_meta), segment_id),
-                    .file_size = rs_meta.segment_file_size(segment_id),
+                    .file_size = rs_meta->segment_file_size(segment_id),
                     .offset = 0,
                     .download_size = rs_meta->segment_file_size(segment_id),
                     .file_system = storage_resource.value()->fs,
